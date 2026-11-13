@@ -1,0 +1,35 @@
+{
+  "K1": {
+    "claim": "grab moves the centre by the offset, nothing outside the radius",
+    "values_mm": {
+      "at_centre": 6.0,
+      "max_outside_radius": 0.0
+    },
+    "confirmed": true
+  },
+  "K2": {
+    "claim": "mirror=True moves left and right sides alike",
+    "values_mm": {
+      "max_left_move": 3.8,
+      "median_left_right_difference": 0.0
+    },
+    "confirmed": true
+  },
+  "K3": {
+    "claim": "smooth removes bumps while keeping the shape and the skeleton",
+    "values_mm": {
+      "rms_bumpy": 2.494,
+      "rms_smoothed": 0.941,
+      "max_joint_move": 0.11
+    },
+    "confirmed": true
+  },
+  "K4": {
+    "claim": "clothes follow a sculpted body",
+    "values": {
+      "belly_moved_mm": 31.3,
+      "shirt_points_inside_skin": 0.0
+    },
+    "confirmed": true
+  }
+}
