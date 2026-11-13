@@ -21,6 +21,9 @@ FABRICS = {
     # tension, compression, shear, bending, mass per vertex (kg), air damping
     "leather": dict(tension=40.0, compression=40.0, shear=25.0, bending=6.0, mass=0.5, air=3.0),
     "cotton": dict(tension=15.0, compression=15.0, shear=5.0, bending=0.5, mass=0.3, air=1.0),
+    # T-shirt knit: barely stretches under its own weight (cotton sagged, pulled the neckline
+    # open and dropped the hem onto the trousers in run 013), but bends easily.
+    "jersey": dict(tension=45.0, compression=40.0, shear=15.0, bending=0.4, mass=0.2, air=1.0),
     "silk": dict(tension=5.0, compression=5.0, shear=1.0, bending=0.05, mass=0.15, air=1.0),
 }
 

@@ -149,6 +149,19 @@ def top(name="top", sleeve=0.55, hem=-0.10, collar=0.96, ease=0.008, thickness=0
                     smooth_shell=smooth_shell)
 
 
+def tee_ease(shoulders=0.02, body=0.03, hem=0.06, sleeve=0.025):
+    """Per-vertex ease for a loose T-shirt to be draped: snug at the yoke, roomy over the
+    chest, flaring to `hem` at the bottom edge so the hem is wider than the hips.
+    (With an even 3 cm the hem was hip-sized: collisions on the sloping hips pushed it up
+    to the waist, 7 to 8 cm, in run 013.)"""
+    c = _body_coordinates()
+    yoke = np.clip((c["h"] - 0.80) / 0.12, 0.0, 1.0)
+    low = np.clip((0.35 - c["h"]) / 0.35, 0.0, 1.0)            # 0 above mid-torso, 1 at the hip joint
+    ease = body + (shoulders - body) * yoke + (hem - body) * low
+    on_arm = np.isin(c["part"], ("arm", "hand"))
+    return np.where(on_arm, sleeve, ease)
+
+
 def baggy_ease(outer=0.032, inner=0.008, waist=0.012, ankle=0.016):
     """Per-vertex ease for loose trousers: roomy at the front and outside of the thigh,
     close on the inner thigh (so the legs do not cut into each other), gathered at the

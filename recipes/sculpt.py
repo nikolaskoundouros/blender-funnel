@@ -118,6 +118,18 @@ def scale(centre, radius, factor, falloff="smooth", mirror=False):
     return {"op": "scale", "centre": centre, "radius": radius, "factor": factor, "falloff": falloff, "mirror": mirror}
 
 
+# Clothing helper shells of the base mesh (garments.TIGHTS and SKIRT): MakeHuman clothes
+# are fitted to these, so moving only them reshapes the clothes and leaves the body (and
+# the joint cubes that place the skeleton) alone.
+CLOTHES_LAYER = (15328, 18722)
+
+
+def clothes(edit):
+    """Apply an edit to the clothing layer only: loosen a shirt, lengthen nothing else.
+    e.g. sculpt.clothes(sculpt.inflate("belly", 0.18, 0.02))"""
+    return {**edit, "layer": "clothes"}
+
+
 def apply(base_verts_mh, edits):
     """Apply a list of edits to base-mesh positions (MakeHuman coordinates). Returns new
     positions; the input is not changed."""
@@ -131,6 +143,11 @@ def apply(base_verts_mh, edits):
             flip = np.array([-1.0, 1.0, 1.0]) if k == 1 else np.ones(3)
             d = np.linalg.norm(v - c, axis=1)
             w = np.where(d < edit["radius"], FALLOFFS[edit["falloff"]](np.clip(d / edit["radius"], 0, 1)), 0.0)
+            if edit.get("layer") == "clothes":
+                keep = np.zeros(len(v), dtype=bool); keep[CLOTHES_LAYER[0]:CLOTHES_LAYER[1]] = True
+                w = np.where(keep, w, 0.0)
+            elif edit.get("layer") == "body":
+                w[human.BODY_VERTS:] = 0.0
             if not w.any():
                 continue
             op = edit["op"]

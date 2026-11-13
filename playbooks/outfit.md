@@ -289,3 +289,30 @@ tinted by a multiply above 2.5 cm object height (sole stays white).
 | Tee hem pointed down front and back (hem -0.13) | hem 0.0: the torso height coordinate bends near the crotch |
 | Draped tee (route B, cotton) over trousers: trousers poke through (step 3), or the tee rides up into a crop top (step 4, thicker trouser collider) | Trousers flare wider at the hips than the tee's hem. Not solved; shaped tee used. Next: give the tee a flared hem or drape before adding the trousers |
 | Skin at the back between tee and trousers (waist 0.06) | waist 0.14 |
+
+## Route E. Ready-made garment plus clothing-layer sculpt (run 013, steps 11 to 13; seconds)
+
+The fastest route to a natural everyday garment (owner's idea, after the HumGen workflow of
+starting from a finished asset and fixing it in sculpt mode). HumGen's assets are commercial,
+so the free MakeHuman clothes (CC0) are used: `male_casualsuit06` is a plain T-shirt plus
+jeans as two separate mesh pieces.
+
+1. Add the asset by name in `outfit=(..., "male_casualsuit06")`.
+2. Delete the piece you do not want (the lower connected piece is the jeans; bmesh walk).
+3. Replace the logo texture with a plain colour; keep the normal map (modelled seams, folds).
+4. Loosen or reshape with `sculpt.clothes(...)` edits passed as `build_human(sculpt=[...])`:
+   they move only the clothing helper layer the asset is fitted to (11,143 of its 11,155
+   references), never the body or the skeleton's joint cubes. Loose tee: inflate belly 0.20 /
+   0.03, chest 0.17 / 0.016, shoulders 0.09 / 0.008 mirrored.
+5. Prints: `prints.fit_uv_frame` + `prints.apply` work on any garment with UVs.
+
+Generated garments on the same helper layer move with the edit too: lower an overlapping
+waistband (trousers `waist=0.0`) rather than fight poke-through.
+
+## Draping a T-shirt (route B) over trousers: not solved (run 013, steps 3 to 10)
+
+The hem rises 5 to 10 cm during simulation in every variant tried: pinned or not, with or
+without the trousers as a collider, posed at once or animated from the rest pose
+(`rig.animate_into_pose`), arms closer or wider, shell pushed clear of the body and the
+trousers, flared hem ease (`garments.tee_ease`), stiffer `jersey` fabric. Measured with a
+per-frame hem height (1st percentile of z; the minimum hid it). Cause not found. Use route E.

@@ -208,3 +208,24 @@ def parent_to_bone(obj, armature, bone_name):
     obj.matrix_parent_inverse = rest.inverted() @ world
     obj.matrix_basis = Matrix.Identity(4)
     return obj
+
+
+def animate_into_pose(armature, frame_end=20, frame_start=1):
+    """Keyframe the armature from its rest pose (at frame_start) to its current pose (at
+    frame_end). For cloth: a garment made in the rest pose and then posed at once starts
+    with sleeves pushed into the body (65 points inside in run 013); moving there over
+    frames lets the collisions carry the cloth along."""
+    bones = armature.pose.bones
+    posed = {b.name: (b.rotation_quaternion.copy(), b.location.copy(), b.scale.copy()) for b in bones}
+    for b in bones:
+        b.rotation_mode = "QUATERNION"
+        b.rotation_quaternion, b.location, b.scale = posed[b.name]
+        for path in ("rotation_quaternion", "location", "scale"):
+            b.keyframe_insert(path, frame=frame_end)
+        b.rotation_quaternion = (1.0, 0.0, 0.0, 0.0)
+        b.location = (0.0, 0.0, 0.0)
+        b.scale = (1.0, 1.0, 1.0)
+        for path in ("rotation_quaternion", "location", "scale"):
+            b.keyframe_insert(path, frame=frame_start)
+    bpy.context.scene.frame_set(frame_start)
+    return frame_end
