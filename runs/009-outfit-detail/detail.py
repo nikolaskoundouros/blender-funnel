@@ -63,7 +63,10 @@ strap = garments.leg_patch("shoulder_strap", limb="arm", s=(-0.02, 0.40), theta=
                                          grime=0.4, grime_color=(0.07, 0.05, 0.045), edge_wear=0.7))
 cuffs = garments.band(name="cuffs", limb="arm", start=1.70, end=1.97, ease=JACKET_EASE + 0.016, thickness=0.02,
                       smooth_shell=SMOOTH, material=materials.plain("Shearling", (0.62, 0.55, 0.42), 0.95))
-collar = garments.collar(low=0.88, high=1.07, ease=0.06, thickness=0.035)
+# Shearling lapel collar lying over the vest (step 7). The first collar was a fur tube.
+collar = garments.lapel_collar(smooth_shell=SMOOTH,
+                               material=wear(materials.shearling(relief=0.45, clump=0.004), grime=0.35, grime_color=(0.32, 0.29, 0.24),
+                                             seams=True, seam_width=0.01, cavities=0.6))
 shirt = garments.top(name="shirt", sleeve=0.4, collar=0.99, hem=0.08, ease=0.004, smooth_shell=SMOOTH,
                      material=materials.fabric((0.62, 0.58, 0.48), on="garment"))
 
@@ -83,11 +86,13 @@ vest_obj.modifiers["Subdivision"].render_levels = 3      # resolution for the ch
 
 # shearling strands on collar and cuffs
 wool = materials.hair_fibre("Wool", (0.56, 0.50, 0.39), roughness=0.95, variation=0.25)
-for part_name, count in (("_collar", 120000), ("_cuffs", 50000)):
+# No strands on the collar: at this distance the clip's collar reads as smooth pile, and
+# strands made it look like a towel.
+for part_name, count, length in (("_cuffs", 50000, 0.004),):
     obj = next(o for o in pilot.children if o.name.endswith(part_name))
     v, f = hair.evaluated_mesh(obj)
     roots, normals = hair.sample_surface(v, f, count, seed=len(part_name))
-    hair.grow(scene, "Fur" + part_name, roots, normals, length=0.007, radius=0.00045, material=wool,
+    hair.grow(scene, "Fur" + part_name, roots, normals, length=length, radius=0.0004, material=wool,
               comb=(0.0, 0.0, -0.05), curl=0.45, steps=4, seed=2, length_jitter=0.25)
 
 # --- step 4: harness, release box, inflation hose, belt with cartridges ----------------
@@ -162,6 +167,66 @@ if STEP4:
         side = np.cross(n, (0.0, 0.0, 1.0)); side /= np.linalg.norm(side)
         straps.tube(scene, f"Cartridge {k}", [p - side * 0.032, p, p + side * 0.032], radius=0.0088,
                     material=casing, parent=pilot)
+
+# --- step 6: scarf, hose detail, cartridge holder, hip pouch ----------------------------
+if STEP4 and "--step5" not in sys.argv:
+    under = straps.surface([o for o in pilot.children if o.name.split("_", 1)[-1] in ("vest", "jacket", "trousers", "shirt")])
+    khaki = lambda n: wear(materials.fabric((0.30, 0.29, 0.20), name=n, thread=0.0014, on="object", sheen=0.25),
+                           grime=0.6, grime_color=(0.12, 0.11, 0.07), patches=0.55, seams=False, patch_scale=12.0)
+    # scarf: a soft band round the neck inside the collar, its end tucked down the front
+    scarf = wear(materials.fabric((0.40, 0.38, 0.33), name="Scarf", thread=0.0012, on="object", sheen=0.5),
+                 grime=0.4, grime_color=(0.2, 0.19, 0.16), seams=False)
+    neck_z = 1.535
+    ring = []
+    for ang in np.radians(np.arange(-170, 171, 12)):
+        d = np.array([np.sin(ang), -np.cos(ang), 0.0])
+        ring.append((-d * 0.5 + np.array([0.0, 0.0, neck_z]), d))
+    straps.strap(scene, "Scarf wrap", under, ring, width=0.06, thickness=0.012, material=scarf, lift=0.006,
+                 parent=pilot)
+    tail = [((0.0 + 0.012 * np.sin(k), -1.0, z), (0.0, 1.0, 0.0)) for k, z in enumerate(np.linspace(1.50, 1.33, 8))]
+    straps.strap(scene, "Scarf end", under, tail, width=0.07, thickness=0.012, material=scarf, lift=0.012,
+                 parent=pilot)
+    # hose: outside the shoulder strap, clamped to the vest, valve and mouthpiece at the top
+    for old in ("Inflation hose", "Hose valve"):          # replaces the step-4 hose, hidden behind the strap
+        bpy.data.objects.remove(bpy.data.objects[old], do_unlink=True)
+    hose_line = []
+    for z, x in ((1.14, 0.155), (1.22, 0.165), (1.31, 0.16), (1.39, 0.14), (1.45, 0.11), (1.48, 0.085)):
+        p_, n_ = straps.hit(bvh, (x, -1.0, z), (0.0, 1.0, 0.0), lift=0.03)
+        if p_ is not None:
+            hose_line.append(p_)
+    straps.tube(scene, "Inflation hose (outside strap)", hose_line, radius=0.011, material=rubber, parent=pilot)
+    clamp_metal = wear(materials.metal("Clamp", (0.25, 0.24, 0.22), 0.4), grime=0.4, seams=False,
+                       grime_color=(0.1, 0.09, 0.08))
+    for k in (1, 3):
+        a, b = np.array(hose_line[k]), np.array(hose_line[k + 1])
+        axis = (b - a) / np.linalg.norm(b - a)
+        straps.disc(scene, f"Hose clamp {k}", a + (b - a) * 0.3, axis, radius=0.0145, thickness=0.009,
+                    material=clamp_metal, bevel=0.002, parent=pilot)
+    top_end = np.array(hose_line[-1])
+    straps.disc(scene, "Hose valve body", top_end, (0.0, -0.4, 1.0), radius=0.017, thickness=0.024,
+                material=clamp_metal, parent=pilot)
+    straps.disc(scene, "Mouthpiece", top_end + np.array([0.0, -0.01, 0.024]), (0.0, -0.4, 1.0),
+                radius=0.011, thickness=0.016, material=rubber, parent=pilot)
+    # canvas holder behind the cartridge column, with two keeper straps over it
+    holder_top = BELT_Z + 0.04
+    straps.strap(scene, "Cartridge holder", under, [((0.075, -1.0, z), (0.0, 1.0, 0.0)) for z in
+                 np.linspace(holder_top, holder_top - 0.19, 10)], width=0.085, thickness=0.004,
+                 material=khaki("Holder canvas"), lift=0.006, parent=pilot)
+    for dx in (-0.024, 0.024):
+        straps.strap(scene, f"Cartridge keeper {dx:+.3f}", under, [((0.075 + dx, -1.0, z), (0.0, 1.0, 0.0)) for z in
+                     np.linspace(holder_top, holder_top - 0.19, 10)], width=0.012, thickness=0.003,
+                     material=khaki("Keeper canvas"), lift=0.030, parent=pilot)
+    # map case on the left hip, hanging from the belt on two short straps
+    case_at, case_n = straps.hit(under, (1.0, -0.02, 0.80), (-1.0, 0.0, 0.0), lift=0.004)
+    case = straps.box(scene, "Map case", case_at, case_n, (0.0, 0.0, 1.0), (0.17, 0.25, 0.05),
+                      material=khaki("Case canvas"), bevel=0.012, bulge=0.25, parent=pilot)
+    straps.box(scene, "Map case flap", case_at + np.array([0.0, 0.0, 0.085]) + case_n * 0.05,
+               case_n, (0.0, 0.0, 1.0), (0.175, 0.085, 0.008), material=khaki("Flap canvas"),
+               bevel=0.004, parent=pilot)
+    for dy in (-0.05, 0.05):
+        straps.tube(scene, f"Case strap {dy:+.2f}", [case_at + np.array([0.0, dy, 0.125]) + case_n * 0.02,
+                    case_at + np.array([0.0, dy, 0.18]) + case_n * 0.012], radius=0.006,
+                    material=khaki("Case strap"), parent=pilot)
 
 world.sky_world(scene, sun_elevation_deg=48.0, sun_rotation_deg=200.0, strength=0.035)
 bpy.ops.mesh.primitive_plane_add(size=400)

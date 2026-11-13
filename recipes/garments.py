@@ -287,7 +287,8 @@ def leg_patch(name, s=(0.18, 0.85), theta=(-35.0, 50.0), side="both", ease=0.012
     out_v, _, out_f, orig, _, _ = geo.delaunay_2d_cdt([tuple(q) for q in points],
                                                      [(i, (i + 1) % n) for i in range(n)], [], 1, 1e-7)
     out_v = np.array([tuple(v) for v in out_v])
-    faces = [tuple(f) for f in out_f if len(f) == 3]
+    faces = [tuple(f) for f in out_f if len(f) == 3
+             and _inside_polygon(out_v[list(f)].mean(axis=0)[None, :], outline)[0]]
     pieces = []
     for side_left in {"L": (True,), "R": (False,), "both": (True, False)}[side]:
         tri, weight = _wrap(out_v, side_left, limb)
@@ -373,6 +374,123 @@ def band(name="cuff", limb="arm", start=1.72, end=1.97, ease=0.04, thickness=0.0
     return _garment(name, TIGHTS, field, ease, thickness,
                     material or materials.plain("Shearling", (0.62, 0.55, 0.42), 0.95),
                     skin_margin=None, smooth_shell=smooth_shell, cut=cut)
+
+
+TORSO_RADIUS = 0.15   # metres per radian round the torso (about the upper-chest radius)
+TORSO_HEIGHT = 0.55   # metres per unit of torso height h (hip joint to base of neck)
+
+
+def _torso_chart():
+    """Torso and neck of the tights shell as flat triangles: x = angle round the body from
+    the centre back (so the seam of the chart falls at the centre front), y = height."""
+    if "torso" in _LEG_CHART:
+        return _LEG_CHART["torso"]
+    c = _body_coordinates()
+    vb = c["vb"]
+    bones = rig.read_rig("default")
+    neck = np.array(rig._position(bones["neck01"]["head"], vb))
+    psi = np.degrees(np.arctan2(vb[:, 0], vb[:, 1] - neck[1]))          # 0 back, +-180 front
+    flat = np.stack([np.radians(psi) * TORSO_RADIUS, c["h"] * TORSO_HEIGHT], axis=1)
+    lo, hi = TIGHTS
+    tris = []
+    for f in human.base_mesh()[2]:
+        if not all(lo <= v <= hi and c["part"][v] in ("torso", "neck") for v in f):
+            continue
+        for t in ((f[0], f[1], f[2]), (f[0], f[2], f[3])) if len(f) == 4 else ((f[0], f[1], f[2]),):
+            if np.ptp(psi[list(t)]) < 180.0:
+                tris.append(t)
+    _LEG_CHART["torso"] = (flat, np.array(tris), psi)
+    return _LEG_CHART["torso"]
+
+
+def _smooth_outline(points, rounds=3):
+    """Round off the corners of a closed outline (Chaikin corner cutting)."""
+    pts = np.asarray(points, dtype=float)
+    for _ in range(rounds):
+        nxt = np.roll(pts, -1, axis=0)
+        pts = np.stack([0.75 * pts + 0.25 * nxt, 0.25 * pts + 0.75 * nxt], axis=1).reshape(-1, 2)
+    return pts
+
+
+def _resample(outline, step):
+    out = []
+    for p_, q in zip(outline, np.roll(outline, -1, axis=0)):
+        n = max(1, int(np.ceil(np.linalg.norm(q - p_) / step)))
+        out.extend(p_ + (q - p_) * k / n for k in range(n))
+    return np.array(out)
+
+
+def torso_patch(name, outline, ease, thickness, material, smooth_shell=0, step=0.009):
+    """A flat piece drawn as an exact outline on the torso and wrapped onto it.
+    outline: closed list of (angle from the centre back in degrees, torso height h)."""
+    from mathutils import geometry as geo
+    flat, tris, _ = _torso_chart()
+    pts = np.array([(np.radians(a_) * TORSO_RADIUS, h_ * TORSO_HEIGHT) for a_, h_ in outline])
+    pts = _resample(_smooth_outline(pts), step)
+    lo, hi = pts.min(axis=0), pts.max(axis=0)
+    gx = np.arange(lo[0] + step, hi[0], step)
+    gy = np.arange(lo[1] + step, hi[1], step * 0.866)
+    grid = np.array([(x + (step * 0.5 if j % 2 else 0.0), y) for j, y in enumerate(gy) for x in gx])
+    grid = grid[_inside_polygon(grid, pts)] if len(grid) else grid
+    grid = grid[[np.min(np.linalg.norm(pts - g, axis=1)) > step * 0.55 for g in grid]] if len(grid) else grid
+    allp = np.concatenate([pts, grid])
+    n = len(pts)
+    out_v, _, out_f, _, _, _ = geo.delaunay_2d_cdt([tuple(q) for q in allp],
+                                                  [(i, (i + 1) % n) for i in range(n)], [], 1, 1e-7)
+    out_v = np.array([tuple(v) for v in out_v])
+    # Keep only triangles inside the outline. The triangulation also fills the outline's
+    # convex hull; for the collar that bridged the V opening (a "bib") and, once smoothed,
+    # blew up into large flat planes.
+    faces = [tuple(f) for f in out_f if len(f) == 3
+             and _inside_polygon(out_v[list(f)].mean(axis=0)[None, :], pts)[0]]
+    # wrap: containing chart triangle, or the nearest one
+    A, B, C = flat[tris[:, 0]], flat[tris[:, 1]], flat[tris[:, 2]]
+    v0, v1 = B - A, C - A
+    den = v0[:, 0] * v1[:, 1] - v1[:, 0] * v0[:, 1]
+    ok = np.abs(den) > 1e-10
+    tris, A, v0, v1, den = tris[ok], A[ok], v0[ok], v1[ok], den[ok]
+    tri_out, w_out = [], []
+    for p_ in out_v:
+        d = p_ - A
+        u = (d[:, 0] * v1[:, 1] - v1[:, 0] * d[:, 1]) / den
+        v = (v0[:, 0] * d[:, 1] - d[:, 0] * v0[:, 1]) / den
+        best = int(np.argmax(np.minimum.reduce([u, v, 1.0 - u - v])))
+        w = np.clip(np.array([1.0 - u[best] - v[best], u[best], v[best]]), 0.0, None)
+        tri_out.append(tris[best]); w_out.append(w / w.sum())
+    # outward normals: the chart runs right-handed when seen from outside on the back
+    faces = [tuple(reversed(f)) for f in faces]
+    spec = _garment(name, TIGHTS, None, ease, thickness, material, skin_margin=None, smooth_shell=smooth_shell)
+    spec["explicit"] = {"faces": faces, "tri": np.array(tri_out), "weight": np.array(w_out),
+                        "uv": out_v / materials.METRES_PER_UV}
+    return spec
+
+
+def lapel_collar(name="collar", tips=0.64, wings=0.80, back=0.86, neckline=1.02, throat=0.94,
+                 tip_angle=150.0, ease=0.105, roll=0.02, thickness=0.036, material=None,
+                 smooth_shell=0, soften=8):
+    """A large turned-down shearling collar: a roll behind the neck, wings lying over the
+    shoulders, and two rounded lapel points on the chest with a V opening between them.
+
+    Heights are torso heights (0 hip joint, 1 base of neck): `tips` how far down the lapel
+    points reach, `wings` the lower edge over the shoulders, `back` at the centre back,
+    `neckline` the top edge, `throat` where the two lapels meet at the front. tip_angle:
+    how far round from the centre back the lapel points sit (180 is the centre front).
+    ease: height of the outer edge above the skin (must clear a vest). roll: extra height
+    toward the neck, so the collar curls up there.
+    (First collar: a band of equal depth, read as a fur tube. Second: cut from the body
+    mesh with no V opening, gave a ragged bib.)"""
+    right = [(0.0, back), (50.0, back - 0.02), (95.0, wings), (125.0, wings - 0.05),
+             (tip_angle, tips), (tip_angle + 12.0, tips + 0.04), (172.0, throat), (178.0, neckline - 0.03),
+             (150.0, neckline), (90.0, neckline + 0.01), (0.0, neckline + 0.01)]
+    outline = right[:-1] + [(-a_, h_) for a_, h_ in reversed(right[1:-1])]
+    c = _body_coordinates()
+    lift = ease + roll * np.clip((c["h"] - (neckline - 0.16)) / 0.14, 0.0, 1.0)
+    spec = torso_patch(name, outline, lift, thickness, material or materials.shearling(),
+                       smooth_shell=smooth_shell)
+    # Relax the crumpling where the neck shell bends sharply, with the edge held still.
+    # (Plain smoothing, tried first, pulled the edge in unevenly and left it ragged.)
+    spec["relax"] = soften
+    return spec
 
 
 def collar(name="collar", low=0.88, high=1.06, ease=0.022, thickness=0.02, material=None):
@@ -723,6 +841,23 @@ def build(scene, base_verts, garment, name, parent=None):
         # vertex get the same push outward.
         n = _vertex_normals_welded(verts, faces)
     verts = verts + ease * n
+    if garment.get("relax"):
+        # Smooth the piece with its outline held still. Done here rather than with
+        # Blender's Laplacian Smooth modifier, which blew this mesh apart into spikes.
+        edges = {(min(a, b), max(a, b)) for f in faces for a, b in zip(f, f[1:] + f[:1])}
+        count = {}
+        for f in faces:
+            for a, b in zip(f, f[1:] + f[:1]):
+                key = (min(a, b), max(a, b)); count[key] = count.get(key, 0) + 1
+        rim = {v for k, c in count.items() if c == 1 for v in k}
+        e = np.array(sorted(edges))
+        deg = np.zeros(len(verts)); np.add.at(deg, e[:, 0], 1.0); np.add.at(deg, e[:, 1], 1.0)
+        free = np.array([i not in rim and deg[i] > 0 for i in range(len(verts))])
+        for k in range(2 * garment["relax"]):
+            mean = np.zeros_like(verts)
+            np.add.at(mean, e[:, 0], verts[e[:, 1]]); np.add.at(mean, e[:, 1], verts[e[:, 0]])
+            step = 0.5 if k % 2 == 0 else -0.53
+            verts[free] += step * (mean[free] / deg[free, None] - verts[free])
     if nudge is not None:
         verts = verts + nudge
 

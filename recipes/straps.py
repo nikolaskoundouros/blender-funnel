@@ -156,3 +156,38 @@ def hit(bvh, origin, direction, lift=0.0):
     if np.dot(n, direction) > 0:
         n = -n
     return np.array(p) + n * lift, n
+
+
+def box(scene, name, centre, outward, up, size, material=None, bevel=0.01, parent=None,
+        bulge=0.0):
+    """A soft rectangular item (pouch, case, holster): size = (width, height, depth) in
+    metres, its back against the surface at `centre`, its front facing `outward`, its top
+    toward `up`. bevel rounds the corners; bulge puffs the front out a little."""
+    out = np.array(outward, dtype=float); out /= np.linalg.norm(out)
+    upv = np.array(up, dtype=float); upv -= out * np.dot(upv, out); upv /= np.linalg.norm(upv)
+    side = np.cross(upv, out)
+    w, h, d = size
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=3, use_grid_fill=True)
+    for v in bm.verts:
+        x, y, z = v.co
+        front = max(0.0, y)                        # local y = outward
+        puff = bulge * (1.0 - (2 * x) ** 2) * (1.0 - (2 * z) ** 2) * front * 2.0
+        v.co = tuple(np.array(centre) + side * x * w + upv * z * h + out * ((y + 0.5) * d + puff))
+    mesh = bpy.data.meshes.new(name)
+    bm.to_mesh(mesh)
+    bm.free()
+    mesh.shade_smooth()
+    if material is not None:
+        mesh.materials.append(material)
+    obj = bpy.data.objects.new(name, mesh)
+    scene.collection.objects.link(obj)
+    rounded = obj.modifiers.new("Rounded", "BEVEL")
+    rounded.width, rounded.segments = bevel, 3
+    smooth = obj.modifiers.new("Subdivision", "SUBSURF")
+    smooth.levels = smooth.render_levels = 1
+    if parent is not None:
+        obj.parent = parent
+        obj.matrix_parent_inverse = parent.matrix_world.inverted()
+    return obj

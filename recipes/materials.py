@@ -567,3 +567,30 @@ def webbing(name="Webbing", color=(0.46, 0.43, 0.33), rib=0.0016):
     bsdf.inputs["Sheen Weight"].default_value = 0.3
     _bump(nodes, links, bsdf, ribs.outputs[0], strength=0.35, distance=0.0004)
     return mat
+
+
+def shearling(name="Shearling", color=(0.56, 0.50, 0.39), clump=0.005, on="object", relief=0.25):
+    """Sheepskin pile seen from a normal viewing distance: a dense, matte, velvety surface
+    with soft clumps, not individual hairs. Pair with very short strands for fuzz at the
+    silhouette. clump: clump size in metres."""
+    mat, nodes, links, bsdf = _new(name)
+    vec = _coords(nodes, links, uv=(on == "garment"))
+    k = METRES_PER_UV if on == "garment" else 1.0
+    cells = nodes.new("ShaderNodeTexVoronoi")
+    cells.feature = "SMOOTH_F1"
+    cells.inputs["Scale"].default_value = k / clump
+    cells.inputs["Smoothness"].default_value = 0.8
+    links.new(vec, cells.inputs["Vector"])
+    shade = nodes.new("ShaderNodeTexNoise")
+    shade.inputs["Scale"].default_value = 18.0 * k
+    shade.inputs["Detail"].default_value = 5.0
+    links.new(vec, shade.inputs["Vector"])
+    links.new(_ramp(nodes, links, shade.outputs["Fac"], tuple(c * 0.78 for c in color), color, 0.3, 0.75),
+              bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = 0.95
+    bsdf.inputs["Specular IOR Level"].default_value = 0.15
+    bsdf.inputs["Sheen Weight"].default_value = 1.0
+    bsdf.inputs["Sheen Roughness"].default_value = 0.45
+    bsdf.inputs["Sheen Tint"].default_value = (*color, 1.0)
+    _bump(nodes, links, bsdf, cells.outputs["Distance"], strength=relief, distance=0.0012)
+    return mat
