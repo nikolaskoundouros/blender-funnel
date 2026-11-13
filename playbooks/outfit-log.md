@@ -25,3 +25,4 @@ One row per outfit attempt, newest last. "Tries" counts simulate-and-look cycles
 | 012 curls | Orange curly mop on a boy (clip: My Mom Cracked The Dinosaur) | 5 steps | ~18 s build, 90 s render | Ringlets, colour, silhouette close; looser C-shaped curls and peach highlights still differ |
 | 013 boy outfit | Tee, blue track pants with red stripe (owner's change), yellow trainers | 6 steps | ~30 s build, ~70 s render | Shapes and colours right; tee stiff (draping over trousers failed), no chest print yet |
 | 013 tee (route E) | Modelled CC0 T-shirt, loosened by clothing-layer sculpt, chest print | 3 steps after 10 on draping | ~3 s build | Natural shirt, folds from the model; draping a generated shell abandoned |
+| 015 trainers | Yellow canvas low-tops with white sole, laces, eyelets, seams, all by code | 4 steps | ~1 s build | Close to the reference; no tongue or collar padding yet |

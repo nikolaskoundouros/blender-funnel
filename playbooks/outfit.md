@@ -316,3 +316,20 @@ without the trousers as a collider, posed at once or animated from the rest pose
 (`rig.animate_into_pose`), arms closer or wider, shell pushed clear of the body and the
 trousers, flared hem ease (`garments.tee_ease`), stiffer `jersey` fabric. Measured with a
 per-frame hem height (1st percentile of z; the minimum hid it). Cause not found. Use route E.
+
+## Trainers by code (run 015, 4 steps, ~1 s build, ~10 s for two close-ups)
+
+`recipes/shoes.py`, in shoemaker's order: `upper_spec` (garments.boots shell, top_at 1.95,
+ease 6 mm, smooth_shell 12), `sole` per foot (footprint of the lowest 14 mm of foot vertices,
+grown 11 mm, 18 mm under the foot and 17 mm up the sides, 6 mm toe spring, bevel 3.5 mm, no
+subdivision), `add_panels` (toe cap, heel counter, eyestay drawn in the material with seam
+lines), `laces` (eyelets and criss-cross laces ray-cast onto the upper, bow on top). Lift
+the character by `shoes.SOLE_BELOW`.
+
+| Symptom | Fix |
+|---|---|
+| Clog look, thin wavy sole (step 1) | Sole grown 11 mm and taken 17 mm up the sides; subdivision removed (it rippled the many-sided caps) |
+| Washed-out yellow in close-up | Key light 60 to 25 W at 1.5 m |
+| Padded collar (`garments.band` on the leg) came out as a twisted ribbon | Dropped; needs its own piece |
+| Straight, boxy panel lines | Toe cap edge arcs (14 x distance squared), heel edge slants with height |
+| White toe cap was my invention | Reference trainers are plain yellow-orange canvas: panels in the upper colour, seams only |
