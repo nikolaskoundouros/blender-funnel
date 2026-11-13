@@ -1,0 +1,19 @@
+{
+  "size": [
+    540,
+    960
+  ],
+  "samples": 48,
+  "sky_strength": 0.035,
+  "sun_rotation": 200.0,
+  "simulation_seconds": 41,
+  "render_seconds": 19,
+  "image": {
+    "p5": 0.131,
+    "median": 0.459,
+    "p95": 0.691,
+    "spread_p95_minus_p5": 0.561,
+    "clipped_fraction": 0.0,
+    "near_black_fraction": 0.0047
+  }
+}

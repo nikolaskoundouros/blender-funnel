@@ -152,7 +152,7 @@ def collar(name="collar", low=0.88, high=1.06, ease=0.022, thickness=0.02, mater
                     skin_margin=None, soften=4)
 
 
-def helmet(name="helmet", ease=0.006, thickness=0.004, material=None):
+def helmet(name="helmet", ease=0.006, thickness=0.004, material=None, cheeks=False):
     """Close-fitting leather flying helmet: crown, back and sides of the head down past
     the ears, leaving the face open. Cut from the head's own surface, then smoothed so
     the ears do not show through."""
@@ -161,6 +161,9 @@ def helmet(name="helmet", ease=0.006, thickness=0.004, material=None):
     crown = (vb[:, 2] - (eye[2] + 0.024)) / 0.03
     back = np.minimum((vb[:, 1] - (eye[1] + 0.085)) / 0.03, (vb[:, 2] - (eye[2] - 0.085)) / 0.03)
     field = np.maximum(crown, back)
+    if cheeks:  # flaps down the sides of the face to the jaw, leaving eyes, nose and mouth open
+        side = np.minimum((np.abs(vb[:, 0]) - 0.050) / 0.02, (vb[:, 2] - (eye[2] - 0.115)) / 0.03)
+        field = np.maximum(field, side)
     on_head = (c["part"] == "neck") & (vb[:, 2] > eye[2] - 0.12)
     field = np.where(on_head, field, -FAR)
     return _garment(name, (0, human.BODY_VERTS - 1), field, ease, thickness,

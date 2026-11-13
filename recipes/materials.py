@@ -296,3 +296,34 @@ def soften_skin(mat, amount=0.25, depth=0.006):
     bsdf.inputs["Subsurface Radius"].default_value = (1.0, 0.35, 0.2)
     bsdf.inputs["Roughness"].default_value = 0.42
     return mat
+
+
+def matte_leather(name="Matte leather", color=(0.14, 0.10, 0.09), on="object", mottle=0.35,
+                  roughness=0.9):
+    """Worn, napped leather (flying-jacket sheepskin, suede): no shine, uneven colour.
+
+    Written after measuring the owner's reference: its jacket's brightest areas are only
+    1.14 to 1.23 times its median brightness, where the first glossy leather gave 1.81.
+    mottle: how far lighter and darker patches stray from the base colour.
+    """
+    mat, nodes, links, bsdf = _new(name)
+    k = METRES_PER_UV if on == "garment" else 1.0
+    vec = _coords(nodes, links, uv=(on == "garment"))
+    patches = nodes.new("ShaderNodeTexNoise")
+    patches.inputs["Scale"].default_value = 14.0 * k
+    patches.inputs["Detail"].default_value = 6.0
+    patches.inputs["Roughness"].default_value = 0.65
+    links.new(vec, patches.inputs["Vector"])
+    dark = tuple(c * (1.0 - mottle) for c in color)
+    light = tuple(min(1.0, c * (1.0 + mottle)) for c in color)
+    links.new(_ramp(nodes, links, patches.outputs["Factor"], dark, light, 0.3, 0.75), bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = roughness
+    bsdf.inputs["Specular IOR Level"].default_value = 0.2
+    bsdf.inputs["Sheen Weight"].default_value = 0.25
+    bsdf.inputs["Sheen Roughness"].default_value = 0.7
+    nap = nodes.new("ShaderNodeTexNoise")
+    nap.inputs["Scale"].default_value = 900.0 * k
+    nap.inputs["Detail"].default_value = 2.0
+    links.new(vec, nap.inputs["Vector"])
+    _bump(nodes, links, bsdf, nap.outputs["Factor"], strength=0.15, distance=0.0003)
+    return mat

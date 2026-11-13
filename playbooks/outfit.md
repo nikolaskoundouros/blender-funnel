@@ -12,6 +12,17 @@ Update it after every outfit (rules at the bottom). History lives in `outfit-log
 - Decide per layer which route below it takes. Tight layers: route A. Anything that should
   hang or crease: route B. Anything needing real tailoring: route C.
 
+## Step 0b. Measure the reference's colours (2 min)
+
+- Overlay a grid on the frame, pick one patch per material, and record its median colour
+  and its highlight ratio (98th percentile brightness over median). Save as a palette file.
+- Highlight ratio tells you the finish: about 1.1 to 1.25 is matte (use
+  `materials.matte_leather`), 1.8 and above is glossy.
+- Displayed colour is roughly surface colour times light. Under daylight, dividing the
+  linear value by about 0.9 gave usable base colours (jacket 0.14, 0.10, 0.09).
+- Do not judge darkness by eye under studio light: the first leather was darkened to
+  0.03 and ended up four times too dark.
+
 ## Step 1. Build the character with a complete collision body (1 min)
 
     human.build_human(..., pose="<pose>", collider=True, **sliders)

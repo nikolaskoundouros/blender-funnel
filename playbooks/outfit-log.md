@@ -10,10 +10,11 @@ One row per outfit attempt, newest last. "Tries" counts simulate-and-look cycles
 | 13 Nov 2026 | Pilot jacket, draped (run 006) | B: draped shell, then panels | 4 | No collision body (sleeves on bare arms); shoulder seams tore | Works: folds, seams, open front over a shirt |
 | 13 Nov 2026 | Shirt from GarmentCode pattern (run 007) | C: sewn pattern | 3 | Sewing too violent; shoulder seam below the shoulders | Works as a short-sleeved shirt |
 | 13 Nov 2026 | Jacket from drafted pattern (run 007) | C: sewn pattern | 4 | Sleeves missed arms (other body's measurements); wrong head measurement; body slid to waist | Not usable yet: sleeves bunch, one seam open |
+| 13 Nov 2026 | Pilot likeness (run 008) | B: draped shell jacket; A: shirt, trousers, helmet with cheek flaps, collar; strand shearling and moustache; goggles | 1 | Nothing failed; first use of the playbook | Recognisable palette and layers under daylight. Missing: vest, harness, clouds, closer camera |
 
 ## What the log says so far
 
-- Route B took 4 tries the first time. With the playbook it should take 1.
+- Route B took 4 tries the first time and 1 try the second time (run 008), following the playbook.
 - Route C has cost 7 tries and is not reliable. Each try is about 2.5 minutes of
   simulation plus a render.
 - The same mistake happened twice (measuring against the holed body). It is now in the
