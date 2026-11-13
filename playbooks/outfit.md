@@ -64,6 +64,30 @@ thickness 6 mm. Result: folds, visible seams, under 0.1% of points inside the sk
 Status: body, collar and lapels sit correctly; sleeves reach the arms but bunch above the
 elbows; one seam stays open. Do not use for a deliverable until that is fixed.
 
+## Route D. Detail pieces (seconds; pockets, flaps, shoulder straps, cuffs, vests, harness)
+
+Worked example: `runs/009-outfit-detail/trousers.py` and `upper.py`.
+
+- **One shared base surface.** Give every loose piece the same `smooth_shell` (30 worked)
+  and, for loose trousers, the same `cut` (straight-leg radii). Pieces then lie exactly on
+  each other. Ease is per piece: trousers 1 to 1.4 cm, pocket +0.4 cm, flap +1.65 cm,
+  jacket 3 cm, strap +0.5 cm, cuffs +1.6 cm, vest +1.6 cm.
+- **Loose trousers:** `garments.trousers(cut={"thigh": 0.118, "knee": 0.098, "ankle":
+  0.088, "folds": 0.007}, smooth_shell=30)`. Inflating the tights only makes fatter leggings.
+- **Pockets, flaps, straps on limbs:** `garments.leg_patch(limb="leg"|"arm", s=(from, to),
+  theta=(from, to), puff=..., snaps=[(s, theta)])`. Exact rounded rectangles wrapped onto
+  the limb: straight edges, clean corners. theta 0 is the front, 90 the outside (top of the
+  arm). Front thigh pocket: s 0.20 to 0.86, theta -38 to 48. Flap: s 0.16 to 0.44.
+- **Cuffs and boot tops:** `garments.band(limb, start, end)`.
+- **Vest:** `garments.vest(low, high, opening)`; padded channels with
+  `materials.add_channels(mat, width=0.075, depth=0.012)` and render subdivision 3.
+- **Stitching:** `materials.add_stitches(mat, rows=2, inset=0.004, row_spacing=0.005)`.
+  Works on any piece built by `garments.build` or `straps.strap`: the mesh carries the
+  distance to its edges and seams. Panel seams (`spec["panels"]`) get stitched too.
+- **Straps, hoses, hardware over the outfit:** `straps.surface(outer objects)`, then
+  `straps.strap(waypoint rays)`, `straps.tube(points)`, `straps.disc(centre, normal)`.
+  Build them last, after everything they lie on.
+
 ## Step 2. Trim and accessories (seconds to a minute)
 
 - Fur and hair: `hair.sample_surface` on the evaluated trim mesh, then `hair.grow`.
@@ -94,6 +118,17 @@ elbows; one seam stays open. Do not use for a deliverable until that is fixed.
 | Goggle strap floats off the head | Sized to the ears | Size to the temples (half-width minus 6 mm) |
 | Fabric pattern in huge stripes | Garment UVs are tiny (21 m per unit) | Use `on="garment"` materials |
 | `import bmesh` fails | Imported before `bpy` | Import `bpy` first |
+| "Material has been removed" | Materials made before `stage.new_scene()`, which resets the file | Create the scene first, then materials |
+| Pocket edges wavy, corners notched | Cut from the 2.7 cm body mesh | Use `leg_patch` (exact, finely meshed) |
+| Patch appears nowhere (NaN positions) | Flat chart has zero-area triangles | Filtered in `_wrap`; check s/theta ranges of the patch |
+| Loose trousers look like leggings | Ease alone keeps the body's shape | Use a `cut` (straight-leg radii) |
+| Crotch or buttocks show through | Creases larger than the smoothing reach | Built in: `smooth_shell` adds crotch bridging |
+| Undershirt pokes through the waistband | Different base surfaces | Same `smooth_shell`, smaller ease, hem above the waistband |
+| Trouser hems balloon at the ankle | Straight-leg radius around a thin ankle | Boots over them on the same `cut`, or a smaller ankle radius |
+| Vest shrinks to two tabs at the collar | Armholes cut by arm coordinate; with arms down most of the chest counts as arm | `vest()` cuts an oval round each shoulder joint |
+| Straps or box vanish into the vest | Padded channels are added at render time, not in the surface straps are laid on | Lift straps by channel depth plus a margin (1.8 cm) |
+| Release box hidden | Ray at the centre hits inside the vest opening | Anchor it where the shoulder straps end |
+| Cartridges merge into one bar | Spaced sideways | Stack them vertically |
 
 ## Time per step on this machine (4 CPU cores, no graphics card)
 
@@ -105,6 +140,8 @@ elbows; one seam stays open. Do not use for a deliverable until that is fixed.
 | 70,000 fur strands | about 2 s to build |
 | Test render 432x540, 48 samples | 20 s |
 | Full render 864x1080, 160 samples with fur | 7 min |
+| Full outfit of route A and D pieces, no cloth simulation | about 2 s to build |
+| Outfit test render 540x720, 48 samples, with 170,000 fur strands | 25 s |
 
 ## Rules for keeping this useful
 
