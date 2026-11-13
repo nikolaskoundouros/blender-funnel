@@ -357,7 +357,8 @@ def interpolate_ringlets(scalp, guides, child_roots, spread=0.0035, tip_spread=0
 
 
 def interpolate_ribbons(scalp, guides, across, radial, child_roots, width=0.012, thickness=0.0015,
-                        taper=0.5, frizz=0.0005, escape=0.015, width_jitter=0.3, seed=0):
+                        taper=0.5, frizz=0.0005, escape=0.015, width_jitter=0.3, fray=0.0, shorten=0.0,
+                        seed=0):
     """Children for wide, flat curls ("ribbon" locks, as in run 012's reference): each lock
     is a band `width` wide laid along its coil's axis and `thickness` deep, so when the
     guide coils the band curls like a ribbon instead of a round spring. The band narrows
@@ -381,6 +382,20 @@ def interpolate_ribbons(scalp, guides, across, radial, child_roots, width=0.012,
         strand = guides[own] + off * root_blend + band * (1.0 - root_blend)
         fz = frizz * (1.0 + 2.0 * (rng.random((len(r), 1, 1)) < escape))
         strand = strand + np.cumsum(rng.normal(size=strand.shape), axis=1) * fz * t / np.sqrt(steps)
+        if fray:
+            # ends fan out: each hair drifts its own way over the last third
+            way = rng.normal(size=(len(r), 1, 3))
+            way /= np.linalg.norm(way, axis=2, keepdims=True)
+            strand = strand + way * fray * np.clip((t - 0.65) / 0.35, 0.0, 1.0) ** 2
+        if shorten:
+            # hairs end at different lengths so a lock tapers to wisps instead of a blunt cut;
+            # each strand is resampled along its own path up to its length fraction
+            keep = 1.0 - shorten * rng.random(len(r))
+            tt = np.linspace(0.0, 1.0, steps)
+            src = tt[None, :] * keep[:, None] * (steps - 1)
+            k0 = np.floor(src).astype(int); k1 = np.minimum(k0 + 1, steps - 1); f = (src - k0)[..., None]
+            rows = np.arange(len(r))[:, None]
+            strand = strand[rows, k0] * (1 - f) + strand[rows, k1] * f
         out[lo:lo + 4096] = strand
     flat = out.reshape(-1, 3)
     q, n = scalp.nearest(flat)

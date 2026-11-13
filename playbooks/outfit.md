@@ -253,3 +253,23 @@ curls, instead of a round spring. Chosen: 220 guides, width 0.016, coil radius 0
 | Wood-shaving look, very crisp | Acceptable; closest to the reference (12a) |
 | Mush, curls lost (thickness 0.003, frizz 0.0012, tips widening) | Keep thickness under 0.002 and frizz under 0.0008 |
 | Fewer guides lose the swept lock over the eye | Check the eye cover after changing guide count |
+
+## Thick fibrous curls and head angle (run 012, steps 15 to 18)
+
+Reference locks are thick bundles of fine visible hairs that curl about once and fray into
+wisps. Settings: 260 guides, 150,000 children, strand radius 0.00005, band 0.012 wide and
+0.005 thick, coil radius 0.009, pitch 0.06 (about one turn), `fray` 0.003 (ends fan out),
+`shorten` 0.35 (hairs end at different lengths), colour (1.0, 0.075, 0.02), roughness 0.45.
+
+Head angle: `pose=[("turn", "neck01", "X", ...), ("turn", "head", ...)]` and
+`rig.parent_to_bone(hair, armature, "head")` so rigid hair follows the head.
+
+Measure hair colour on the lit half of orange pixels as hue, saturation, value.
+Reference 16 deg / 0.73 / 0.85.
+
+| Symptom | Fix |
+|---|---|
+| Thin smooth sheets (owner: "his curls are thicker") | Thickness 0.0015 to 0.005, more children, thinner strands, fray and shorten the ends |
+| Hair yellower and darker (22 deg, value 0.74) | Direct colour (1.0, 0.10, 0.03) and key light 40 to 58 W |
+| Fine fibres wash out to pink (saturation 0.50) | Colour (1.0, 0.075, 0.02), roughness 0.45: 18 deg / 0.62 / 0.82 |
+| Curls too big (owner) | Coil radius 0.011 to 0.009, band 0.016 to 0.012 |

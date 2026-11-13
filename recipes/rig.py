@@ -193,3 +193,18 @@ def apply_pose(armature, pose):
             aim_limb(armature, step[1], step[2], step[3])
         else:
             rotate_bone(armature, step[1], step[2], step[3])
+
+
+def parent_to_bone(obj, armature, bone_name):
+    """Make a rigid object (hair curves, a hat, goggles) follow one bone, keeping where it
+    is in the rest pose. Blender's bone parent sits at the bone's tail, so the inverse is
+    taken from the rest matrix moved along the bone by its length."""
+    bone = armature.data.bones[bone_name]
+    rest = armature.matrix_world @ bone.matrix_local @ Matrix.Translation((0.0, bone.length, 0.0))
+    world = obj.matrix_world.copy()
+    obj.parent = armature
+    obj.parent_type = "BONE"
+    obj.parent_bone = bone_name
+    obj.matrix_parent_inverse = rest.inverted() @ world
+    obj.matrix_basis = Matrix.Identity(4)
+    return obj
