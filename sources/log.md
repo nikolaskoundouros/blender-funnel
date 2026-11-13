@@ -83,6 +83,12 @@ quality, not copied into anything we ship.
 | Blender 5.3.0 `procedural_hair_node_assets.blend`: inputs of Curl, Clump, Frizz Hair Curves and Hair Curves Noise, read on the installed program | A | 5.3.0 | Curl design: start along the strand, radius, frequency, random offset per curve, and a guide map so strands of one clump curl together. Re-implemented in numpy (`haircut.grow_ringlets`) |
 | "My Mom Cracked The Dinosaur" (87 s vertical short), file supplied by the owner | target | n/a | Reference for the orange curly hair; frames kept out of git |
 
+## Tutorial video: FaceTracker for Blender (13 Nov 2026)
+
+| Source | Trust | Targets | What it gave |
+|---|---|---|---|
+| KeenTools "FaceTracker for Blender" tutorial (4 min 31 s), on the owner's computer; analysed there by another session | D | Blender 4.2, FaceTracker 2024.2.3 | Facial mocap workflow and export format; see `notes/tutorial-facetracker.md` |
+
 ## Could not be used
 
 | Source | Why |
