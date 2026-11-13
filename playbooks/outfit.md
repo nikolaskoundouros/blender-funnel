@@ -103,6 +103,16 @@ Worked example: `runs/009-outfit-detail/trousers.py` and `upper.py`.
 - Small test render at 432x540, 48 samples (about 20 s) before any full-size render.
 - Put the test next to the reference: `tools/side_by_side.py`.
 
+## Iterating on a shape (learned on the collar, run 009 steps 7 to 10)
+
+- Never replace the best version without a side-by-side against it and the reference.
+  Step 7 replaced a better step 5; the fix was to merge their good parts.
+- Shape first, in clay: `tools/variants.py SCRIPT VIEW REFERENCE OUT "label=k=v;k=v" ...`
+  renders four variants in about a minute (CLAY=1: grey, no fur, 8 samples).
+- Surface second, in full renders, again as options side by side.
+- Collar settings that worked: cushion 0.065, tips 0.66, wings 0.84, tip_angle 160,
+  soften 20; fuzz 400,000 strands, 1.8 mm long, 0.18 mm radius; pile relief 0.6.
+
 ## Failure signatures and fixes
 
 | What you see | Cause | Fix |
@@ -129,6 +139,13 @@ Worked example: `runs/009-outfit-detail/trousers.py` and `upper.py`.
 | Straps or box vanish into the vest | Padded channels are added at render time, not in the surface straps are laid on | Lift straps by channel depth plus a margin (1.8 cm) |
 | Release box hidden | Ray at the centre hits inside the vest opening | Anchor it where the shoulder straps end |
 | Cartridges merge into one bar | Spaced sideways | Stack them vertically |
+| Collar reads as a fur tube | Band of equal depth all round | `lapel_collar` with a drawn outline |
+| Collar flat like paper, rises like a hood | No volume; roll too high | `cushion` 0.05 to 0.065, roll 0, neckline 0.98 |
+| Huge flat planes bridging a V opening | Triangulation kept triangles outside the outline | Fixed: only triangles inside the outline are kept |
+| Spikes all over a smoothed piece | Blender's Laplacian smooth modifier on this mesh | Edge-pinned smoothing in `garments.build` (`relax`) |
+| Lapel points flare outward | tip_angle too small (135) | 160 points them down toward the V |
+| Shearling looks like a terry towel | Strands 3.5 mm long, 0.4 mm thick | 1.8 mm long, 0.18 mm thick, many more |
+| Segmentation fault, no message | Growing zero hair strands | Skip; `hair.grow` now refuses an empty set |
 
 ## Time per step on this machine (4 CPU cores, no graphics card)
 

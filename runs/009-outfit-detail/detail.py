@@ -17,6 +17,10 @@ from recipes import camera, color, garments, hair, human, materials, render, sta
 from tools.image_stats import stats  # noqa: E402
 
 VIEW = sys.argv[1] if len(sys.argv) > 1 else "chest"
+# Fast shape preview: plain grey clay, no fur, few samples (a few seconds instead of a minute).
+CLAY = os.environ.get("CLAY") == "1"
+# Collar settings to try, e.g. COLLAR="tips=0.74,wings=0.84"
+COLLAR = {k: float(v) for k, v in (kv.split("=") for kv in os.environ.get("COLLAR", "").split(",") if kv)}
 W, H, SAMPLES = (int(a) for a in sys.argv[2:5]) if len(sys.argv) > 4 else ((540, 540, 64) if VIEW != "full" else (540, 720, 48))
 wear = materials.add_wear
 SLIDERS = dict(gender=1.0, age=0.55, muscle=0.6, weight=0.55, height=0.5, caucasian=1, african=0, asian=0)
@@ -66,9 +70,14 @@ cuffs = garments.band(name="cuffs", limb="arm", start=1.70, end=1.97, ease=JACKE
 # Shearling lapel collar lying over the vest (step 7). The first collar was a fur tube.
 # Step 8: step 7's outline, inflated into thick cushions (as step 5 had thickness), sitting
 # low round the neck, with short dense fuzz. Step 7 was flat and rose like a hood.
-collar = garments.lapel_collar(smooth_shell=SMOOTH, neckline=0.98, throat=0.90, roll=0.0, ease=0.088,
-                               thickness=0.012, cushion=0.05, cushion_width=0.055,
-                               material=wear(materials.shearling(relief=0.45, clump=0.004), grime=0.35, grime_color=(0.32, 0.29, 0.24),
+# Chosen from clay variants (runs/compare/collar_variants_2.png): raised, tips swung out, fatter.
+collar_args = dict(neckline=0.98, throat=0.90, roll=0.0, ease=0.088, thickness=0.012, cushion=0.065,
+                   cushion_width=0.055, tips=0.66, wings=0.84, soften=20, tip_angle=160)
+# (tip_angle 135 swung the points outward; the reference's come down toward the V.)
+collar_args.update(COLLAR)
+collar = garments.lapel_collar(smooth_shell=SMOOTH, **collar_args,
+                               material=wear(materials.shearling(relief=float(os.environ.get("RELIEF", "0.6")), clump=0.004),
+                                             grime=0.35, grime_color=(0.32, 0.29, 0.24),
                                              seams=True, seam_width=0.01, cavities=0.6))
 shirt = garments.top(name="shirt", sleeve=0.4, collar=0.99, hem=0.08, ease=0.004, smooth_shell=SMOOTH,
                      material=materials.fabric((0.62, 0.58, 0.48), on="garment"))
@@ -91,11 +100,16 @@ vest_obj.modifiers["Subdivision"].render_levels = 3      # resolution for the ch
 wool = materials.hair_fibre("Wool", (0.56, 0.50, 0.39), roughness=0.95, variation=0.25)
 # No strands on the collar: at this distance the clip's collar reads as smooth pile, and
 # strands made it look like a towel.
-for part_name, count, length in (("_collar", 160000, 0.0035), ("_cuffs", 50000, 0.004)):
+# Collar fuzz, as "count,length_m,radius_m" (FUR env var to try others).
+FUR = [float(x) for x in os.environ.get("FUR", "400000,0.0018,0.00018").split(",")]   # option B chosen over towel-like 3.5 mm strands
+for part_name, count, length in (() if CLAY else (("_collar", int(FUR[0]), FUR[1]), ("_cuffs", 50000, 0.004))):
+    if count <= 0:
+        continue            # Blender crashes on an empty hair-curves object
     obj = next(o for o in pilot.children if o.name.endswith(part_name))
     v, f = hair.evaluated_mesh(obj)
     roots, normals = hair.sample_surface(v, f, count, seed=len(part_name))
-    hair.grow(scene, "Fur" + part_name, roots, normals, length=length, radius=0.0004, material=wool,
+    hair.grow(scene, "Fur" + part_name, roots, normals, length=length,
+              radius=FUR[2] if part_name == "_collar" and len(FUR) > 2 else 0.0004, material=wool,
               comb=(0.0, 0.0, -0.05), curl=0.45, steps=4, seed=2, length_jitter=0.25)
 
 # --- step 4: harness, release box, inflation hose, belt with cartridges ----------------
@@ -241,6 +255,10 @@ target, eye, lens = VIEWS[VIEW]
 aim = stage.empty_at(scene, "Aim", target)
 camera.camera_at(scene, eye, aim, lens=lens)
 color.set_view(scene, "AgX", look="Medium High Contrast")
+if CLAY:
+    clay = materials.plain("Clay", (0.5, 0.5, 0.5), 0.6)
+    bpy.context.view_layer.material_override = clay
+    W, H, SAMPLES = 360, 360, 8
 render.cycles_cpu(scene, width=W, height=H, samples=SAMPLES)
-out = render.render_to(scene, os.path.join(HERE, f"detail_{VIEW}.png"))
+out = render.render_to(scene, os.environ.get("OUT") or os.path.join(HERE, f"detail_{VIEW}.png"))
 print("STATS " + json.dumps({"image": stats(out)}))

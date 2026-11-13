@@ -47,6 +47,8 @@ def grow(scene, name, roots, normals, length, radius, material, comb=(0.0, 0.0, 
     """
     rng = np.random.default_rng(seed)
     n = len(roots)
+    if n == 0:
+        raise ValueError("no strands to grow: Blender crashes on an empty hair-curves object")
     lengths = np.broadcast_to(np.asarray(length, dtype=float), (n,)) * (
         1.0 + length_jitter * (rng.random(n) * 2.0 - 1.0))
     comb = np.broadcast_to(np.asarray(comb, dtype=float), (n, 3))

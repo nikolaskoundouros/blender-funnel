@@ -489,7 +489,7 @@ def lapel_collar(name="collar", tips=0.64, wings=0.80, back=0.86, neckline=1.02,
                        smooth_shell=smooth_shell)
     # Relax the crumpling where the neck shell bends sharply, with the edge held still.
     # (Plain smoothing, tried first, pulled the edge in unevenly and left it ragged.)
-    spec["relax"] = soften
+    spec["relax"] = int(soften)
     # cushion: how far the middle of each lobe swells out, in metres; with a rounded
     # profile this gives the thick, pillowy roll of real shearling instead of a flat flap.
     spec["puff"], spec["puff_width"], spec["puff_shape"] = cushion, cushion_width, 0.5
