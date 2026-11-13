@@ -1,0 +1,33 @@
+{
+  "fabric": "cotton",
+  "simulation_seconds": 73,
+  "seam_gap_before_m": 0.227,
+  "seam_gap_after_m": 0.0052,
+  "largest_seam_gap_after_m": 0.141,
+  "fraction_inside_skin_3mm": 0.0,
+  "fold_measure_degrees": 31.34,
+  "hem_height_m": 1.008,
+  "panels": [
+    "left_btorso",
+    "left_collar_front",
+    "left_collar_back",
+    "left_ftorso",
+    "left_sleeve_b",
+    "left_sleeve_f",
+    "sl_left_cuff_f",
+    "sl_left_cuff_b",
+    "right_ftorso",
+    "right_btorso",
+    "right_collar_front",
+    "right_collar_back",
+    "right_sleeve_b",
+    "right_sleeve_f",
+    "sl_right_cuff_b",
+    "sl_right_cuff_f",
+    "wb_back",
+    "wb_front"
+  ],
+  "sewing_edges": 459,
+  "triangles": 7214,
+  "vertices": 4119
+}

@@ -98,7 +98,9 @@ def build(scene, pattern, name="garment", spacing=1.8, to_metres=0.01, offset=(0
     if edit:
         for pname, panel in panels.items():
             edit(pname, panel)
-    stitches = pattern["stitches"]
+    # A stitch is a pair of (panel, edge). Newer files add a third item, "right_wrong",
+    # marking seams that join the outside of one panel to the inside of another (collars).
+    stitches = [(st[0], st[1]) for st in pattern["stitches"]]
 
     # 1. How many segments each edge gets: stitched partners must agree.
     length = {}

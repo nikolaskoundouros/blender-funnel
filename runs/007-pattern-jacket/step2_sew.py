@@ -24,7 +24,9 @@ person = human.build_human(scene, name="Pilot", skin="middleage_caucasian_male",
 solid_body = next(c for c in person.children if c.name.endswith("_collider"))
 cloth.make_collider(solid_body)
 
-pattern, _ = patterns.load(os.path.join(human.ASSETS, "patterns", "shirt_mean_specification.json"))
+PATTERN = sys.argv[3] if len(sys.argv) > 3 else "shirt_mean_specification.json"
+TAG = sys.argv[4] if len(sys.argv) > 4 else FABRIC
+pattern, _ = patterns.load(os.path.join(human.ASSETS, "patterns", PATTERN))
 scale = person["funnel_height_m"] / 1.7199
 # Second attempt (gentle sewing) still ended at the hips. Cause: the pattern's shoulder
 # seam sits at 1.43 m, below the top of this character's shoulders (the pattern was drafted
@@ -67,7 +69,7 @@ report = {"fabric": FABRIC, "simulation_seconds": round(time.time() - started),
           "fold_measure_degrees": round(cloth.fold_measure(after, faces), 2),
           "hem_height_m": round(float(after[:, 2].min()), 3), **{k: v for k, v in info.items() if k != "owner"}}
 print("SEW " + json.dumps(report))
-with open(os.path.join(HERE, f"step2_{FABRIC}.json"), "w") as fh:
+with open(os.path.join(HERE, f"step2_{TAG}.json"), "w") as fh:
     json.dump(report, fh, indent=2)
 
 thick = jacket.modifiers.new("Thickness", "SOLIDIFY")
@@ -80,4 +82,4 @@ world.solid_world(scene, (0.6, 0.72, 0.9), 0.1)
 camera.camera_at(scene, cam_at, aim, lens=50.0)
 color.set_view(scene, "AgX", look="Medium High Contrast")
 render.cycles_cpu(scene, width=540, height=540, samples=40)
-render.render_to(scene, os.path.join(HERE, f"step2_sewn_{FABRIC}.png"))
+render.render_to(scene, os.path.join(HERE, f"step2_sewn_{TAG}.png"))

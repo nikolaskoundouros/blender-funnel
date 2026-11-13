@@ -42,3 +42,36 @@ licence file read) unless marked otherwise.
 Unverified: whether their panel placement transfers to our body shape without adjustment,
 and whether Blender's solver sews panels that start several centimetres apart as cleanly
 as their own simulator does.
+
+## Using the generator (13 Nov 2026, with the owner's go-ahead)
+
+- `pygarment` 2.0.2 installs from the Python package index, but that build cannot be
+  imported as `pygarment` (its modules are installed under other names). The generator is
+  therefore run from a checkout of the repository, using the installed dependencies, in
+  its own Python 3.11 environment. `tools/draft_pattern.py` wraps this.
+- Design options that matter for jackets: body `Shirt` or `FittedShirt` with length, width
+  and flare; necklines including V; collar components `Turtle`, `SimpleLapel`, `Hood2Panels`;
+  sleeves up to 1.15 of arm length with `CuffBand` cuffs; a waistband. There is no front
+  opening, zip, pocket or shearling option.
+- A jacket-style draft (loose body, V neck with lapel collar, full-length sleeves with cuff
+  bands, waistband) came out as 18 panels and 35 stitches, with no self-intersection.
+- Newer pattern files add a third item to some stitches (`"right_wrong"`, used on collars)
+  and use circle-arc edges. The reader handles both; the arc direction rule was derived
+  from the library's drawing code and is not yet checked against it numerically.
+
+| Step | Result |
+|---|---|
+| Shirt pattern, panels placed | Worked |
+| Shirt pattern, sewn | Worked on the third attempt (see run 007 notes below) |
+| Jacket pattern, panels placed | Worked |
+| Jacket pattern, sewn | Body, V neck and lapels form; **sleeves miss the arms** and bunch at the shoulders; one seam left 14 cm open |
+
+Why the sleeves miss: the pattern was drafted and placed for the library's own body
+(arms held about 45 degrees down, lower and more sloped shoulders). Our character's arms
+and shoulders sit elsewhere, and the 7 cm lift that rescued the shirt's shoulder seams
+moves the sleeves further off the arms. Lifting was a patch. The proper fix is to give
+the generator our character's measurements, so the pattern is drafted and placed for it.
+
+Next: measure our character from its mesh into the library's body-measurement file
+(about 27 values: height, bust, waist, hips, shoulder width and slope, arm length, arm
+pose angle, wrist, neck width and others), then draft and sew again without the lift.
