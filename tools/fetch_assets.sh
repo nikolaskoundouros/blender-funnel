@@ -21,12 +21,12 @@ if [ ! -f "$TARGET/mpfb_data/3dobjs/base.obj" ]; then
   git clone --quiet --filter=blob:none --no-checkout https://github.com/makehumancommunity/mpfb2.git "$WORK/mpfb2"
   git -C "$WORK/mpfb2" sparse-checkout set --no-cone \
     src/mpfb/data/3dobjs src/mpfb/data/mesh_metadata src/mpfb/data/rigs/standard \
-    src/mpfb/data/targets/macrodetails src/mpfb/data/targets/breast
+    src/mpfb/data/targets/macrodetails src/mpfb/data/targets/breast src/mpfb/data/targets/expression
   git -C "$WORK/mpfb2" checkout --quiet "$MPFB_COMMIT"
   mkdir -p "$TARGET/mpfb_data/targets" "$TARGET/mpfb_data/rigs"
   D="$WORK/mpfb2/src/mpfb/data"
   cp -r "$D/3dobjs" "$D/mesh_metadata" "$TARGET/mpfb_data/"
-  cp -r "$D/targets/macrodetails" "$D/targets/breast" "$TARGET/mpfb_data/targets/"
+  cp -r "$D/targets/macrodetails" "$D/targets/breast" "$D/targets/expression" "$TARGET/mpfb_data/targets/"
   cp -r "$D/rigs/standard" "$TARGET/mpfb_data/rigs/"
 fi
 

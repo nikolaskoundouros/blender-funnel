@@ -191,3 +191,65 @@ def box(scene, name, centre, outward, up, size, material=None, bevel=0.01, paren
         obj.parent = parent
         obj.matrix_parent_inverse = parent.matrix_world.inverted()
     return obj
+
+
+def boundary_loops(obj):
+    """Open edges of a mesh object, as ordered loops of world positions.
+
+    Follows boundary edges in the direction the faces wind them, so loops that touch at a
+    single vertex stay separate. (The first version followed neighbours and merged a
+    goggle lens opening with the mask's outer edge where they nearly met.)"""
+    mesh = obj.data
+    directed = {}
+    for poly in mesh.polygons:
+        vs = list(poly.vertices)
+        for a, b in zip(vs, vs[1:] + vs[:1]):
+            directed[(a, b)] = directed.get((a, b), 0) + 1
+    outgoing = {}
+    for (a, b), c in directed.items():
+        if c == 1 and (b, a) not in directed:
+            outgoing.setdefault(a, []).append(b)
+    used, loops = set(), []
+    for start in list(outgoing):
+        for first in outgoing[start]:
+            if (start, first) in used:
+                continue
+            loop, cur, nxt = [start], start, first
+            while (cur, nxt) not in used:
+                used.add((cur, nxt))
+                if nxt == start:
+                    break
+                loop.append(nxt)
+                options = [v for v in outgoing.get(nxt, []) if (nxt, v) not in used]
+                if not options:
+                    break
+                cur, nxt = nxt, options[0]
+            if len(loop) > 2:
+                loops.append(np.array([obj.matrix_world @ mesh.vertices[i].co for i in loop]))
+    return loops
+
+
+def ring_tube(scene, name, points, radius, material=None, parent=None, offset=None):
+    """A closed tube along a loop of points (a rolled edge or a metal rim)."""
+    pts = np.asarray(points, dtype=float)
+    if offset is not None:
+        pts = pts + np.asarray(offset)
+    curve = bpy.data.curves.new(name, "CURVE")
+    curve.dimensions = "3D"
+    curve.bevel_depth = radius
+    curve.bevel_resolution = 4
+    spline = curve.splines.new("POLY")
+    spline.points.add(len(pts) - 1)
+    for p, q in zip(spline.points, pts):
+        p.co = (*q, 1.0)
+    spline.use_cyclic_u = True
+    if material is not None:
+        curve.materials.append(material)
+    obj = bpy.data.objects.new(name, curve)
+    scene.collection.objects.link(obj)
+    smooth = obj.modifiers.new("Subdivision", "SUBSURF")
+    smooth.levels = smooth.render_levels = 1
+    if parent is not None:
+        obj.parent = parent
+        obj.matrix_parent_inverse = parent.matrix_world.inverted()
+    return obj

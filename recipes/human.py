@@ -207,12 +207,32 @@ def macro_targets(gender=0.5, age=0.5, muscle=0.5, weight=0.5, height=0.5, propo
     return out
 
 
-def morphed_base(**sliders):
-    """Base-mesh vertex positions (MakeHuman axes) for the given sliders, feet on the ground."""
+EXPRESSION_UNITS = os.path.join(DATA, "targets", "expression", "units")
+
+
+def morphed_base(expression=None, **sliders):
+    """Base-mesh vertex positions (MakeHuman axes) for the given sliders, feet on the ground.
+
+    expression: optional {unit name: weight 0..1} using MakeHuman's facial expression
+    units, e.g. {"mouth-corner-puller": 0.8, "mouth-open": 0.3}. Names are the files in
+    targets/expression/units/<ethnicity>/ without ".target.gz". The ethnicity folder is
+    blended by the same african/asian/caucasian sliders as the body."""
     verts = base_mesh()[0].copy()
     for path, w in macro_targets(**sliders):
         idx, off = read_target(path)
         verts[idx] += w * off
+    if expression:
+        race = {k: sliders.get(k, 1 / 3) for k in ("african", "asian", "caucasian")}
+        total = sum(race.values()) or 1.0
+        for unit, amount in expression.items():
+            for folder, share in race.items():
+                if share <= 0:
+                    continue
+                path = os.path.join(EXPRESSION_UNITS, folder, f"{unit}.target.gz")
+                if not os.path.exists(path):
+                    raise FileNotFoundError(f"no expression unit {unit!r}; see {EXPRESSION_UNITS}")
+                idx, off = read_target(path)
+                verts[idx] += amount * share / total * off
     verts[:, 1] -= verts[:BODY_VERTS, 1].min()
     return verts
 
@@ -316,7 +336,7 @@ def add_item(scene, base_verts, kind, name, material_path=None, parent=None):
 def build_human(scene, name="Human", skin="young_caucasian_female", outfit=(), hair=None,
                 eyes="brown", eyebrows="eyebrow001", eyelashes="eyelashes01", teeth=True,
                 location=(0.0, 0.0, 0.0), facing_deg=0.0, pose=None, rig_name="default",
-                collider=False, **sliders):
+                collider=False, expression=None, **sliders):
     """A complete standing character: body, skin, face details, hair and outfit.
 
     outfit: names from assets/system/clothes, e.g. ("female_casualsuit01", "shoes01").
@@ -331,7 +351,7 @@ def build_human(scene, name="Human", skin="young_caucasian_female", outfit=(), h
     sliders: see macro_targets(). Returns the root object (the skeleton if posed, else the
     body); everything else is parented to it.
     """
-    base_verts = morphed_base(**sliders)
+    base_verts = morphed_base(expression=expression, **sliders)
     _, uvs, faces, face_uvs = base_mesh()
 
     covered = set()

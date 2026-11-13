@@ -126,3 +126,69 @@ def goggles(scene, base_verts, parent=None, clearance=0.006, frame_material=None
     sf.append((k, k + 2, k + 3, k + 1))
     made.append(_mesh(scene, "Goggle strap", sv, sf, strap_material, parent, thickness=0.003))
     return made
+
+
+def goggle_lenses(scene, base_verts, glass_material, rim_material, parent=None, eye_offset=0.032,
+                  lift=0.0, size=(0.025, 0.019), overlap=1.08, standoff=0.015, dome=0.003,
+                  rim_radius=0.0019, corner=0.55):
+    """Clean lenses with chrome rims for goggles made by garments.goggle_parts (pass the
+    same eye_offset, lift and lens size). Each lens is an exact rounded rectangle, gently
+    domed, standing `standoff` metres off the face plane around the eye and slightly
+    larger than the mask's opening so its edge tucks under the mask.
+    (Lenses cut from the face mesh came out crumpled; fitting them to the mask's openings
+    failed where an opening merged with the mask edge near the nose.)"""
+    from mathutils import geometry as geo
+
+    from . import garments, straps
+    c = garments._body_coordinates()
+    base, morphed = c["vb"], human.to_blender(base_verts)
+    eye = c["eye"]
+    front = np.nonzero((np.arange(len(base)) < human.BODY_VERTS) & (c["part"] == "neck")
+                       & (base[:, 1] < eye[1] + 0.012))[0]
+    made = []
+    for k, side in enumerate((1.0, -1.0)):
+        target = np.array([side * eye_offset, eye[2] + lift])
+        gap = np.hypot(base[front, 0] - target[0], base[front, 2] - target[1])
+        near = front[gap < 0.03]
+        pts = morphed[near]
+        centre = pts.mean(axis=0)
+        _, _, vt = np.linalg.svd(pts - centre)
+        w = vt[2] if vt[2][1] < 0 else -vt[2]                       # facing forward
+        u = np.cross((0.0, 0.0, 1.0), w); u /= np.linalg.norm(u)
+        v = np.cross(w, u)
+        centre = centre + w * standoff
+        hx, hz = size[0] * overlap, size[1] * overlap
+        outline = garments._resample(garments._rounded_rectangle(-hx, hx, -hz, hz, corner * min(hx, hz), 0.0015), 0.0015)
+        n = len(outline)
+        grid = np.array([(x, y) for x in np.arange(-hx + 0.001, hx, 0.002) for y in np.arange(-hz + 0.001, hz, 0.002)])
+        grid = grid[garments._inside_polygon(grid, outline)]
+        grid = grid[[np.min(np.linalg.norm(outline - g, axis=1)) > 0.0012 for g in grid]]
+        flat = np.concatenate([outline, grid])
+        out_v, _, out_f, _, _, _ = geo.delaunay_2d_cdt([tuple(q) for q in flat], [(i, (i + 1) % n) for i in range(n)],
+                                                      [], 1, 1e-8)
+        out_v = np.array([tuple(q) for q in out_v])
+        faces = [tuple(f) for f in out_f if len(f) == 3
+                 and garments._inside_polygon(out_v[list(f)].mean(axis=0)[None, :], outline)[0]]
+        r2 = np.clip((out_v[:, 0] / hx) ** 2 + (out_v[:, 1] / hz) ** 2, 0.0, 1.0)
+        verts = centre + np.outer(out_v[:, 0], u) + np.outer(out_v[:, 1], v) + np.outer(dome * (1.0 - r2), w)
+        f0 = faces[0]
+        if np.dot(np.cross(verts[f0[1]] - verts[f0[0]], verts[f0[2]] - verts[f0[0]]), w) < 0:
+            faces = [tuple(reversed(f)) for f in faces]
+        mesh = bpy.data.meshes.new(f"Goggle lens {k}")
+        mesh.from_pydata(verts.tolist(), [], faces)
+        dist, along = garments.edge_attributes(verts, faces)
+        mesh.attributes.new("edge_dist", "FLOAT", "POINT").data.foreach_set("value", dist.astype(np.float32))
+        mesh.attributes.new("edge_along", "FLOAT", "POINT").data.foreach_set("value", along.astype(np.float32))
+        mesh.update()
+        mesh.shade_smooth()
+        mesh.materials.append(glass_material)
+        lens = bpy.data.objects.new(mesh.name, mesh)
+        scene.collection.objects.link(lens)
+        rim_pts = centre + np.outer(outline[:, 0], u) + np.outer(outline[:, 1], v) + w * 0.0006
+        rim = straps.ring_tube(scene, f"Goggle rim {k}", rim_pts, rim_radius, material=rim_material)
+        for obj in (lens, rim):
+            if parent is not None:
+                obj.parent = parent
+                obj.matrix_parent_inverse = parent.matrix_world.inverted()
+        made += [lens, rim]
+    return made

@@ -103,6 +103,21 @@ Worked example: `runs/009-outfit-detail/trousers.py` and `upper.py`.
 - Small test render at 432x540, 48 samples (about 20 s) before any full-size render.
 - Put the test next to the reference: `tools/side_by_side.py`.
 
+## Head pieces (run 010)
+
+Worked example: `runs/010-head/head.py`.
+
+- Hood: `garments.flying_helmet(opening=(0.052, 0.083))`, relaxed with the face edge held
+  (`spec["relax"] = 14`); rolled edge from `straps.boundary_loops` + `straps.ring_tube`;
+  panel seams with `materials.add_seam_lines(..., color=` close to the leather `)`.
+- Goggles: `garments.goggle_mask()` (exact outline on the smoothed face) plus
+  `accessories.goggle_lenses(..., standoff=0.020, overlap=1.12)` for clean domed lenses
+  and chrome rims; `materials.frosted_glass()` for grimy edges.
+- Moustache: `garments.moustache_base()` (dark layer on the raw face) under about
+  20,000 short strands combed hard sideways and down.
+- Expression: `build_human(expression={"mouth-corner-puller": 0.9, ...})`; 34 units in
+  `assets/mpfb_data/targets/expression/units/<ethnicity>/`.
+
 ## Iterating on a shape (learned on the collar, run 009 steps 7 to 10)
 
 - Never replace the best version without a side-by-side against it and the reference.
@@ -146,6 +161,14 @@ Worked example: `runs/009-outfit-detail/trousers.py` and `upper.py`.
 | Lapel points flare outward | tip_angle too small (135) | 160 points them down toward the V |
 | Shearling looks like a terry towel | Strands 3.5 mm long, 0.4 mm thick | 1.8 mm long, 0.18 mm thick, many more |
 | Segmentation fault, no message | Growing zero hair strands | Skip; `hair.grow` now refuses an empty set |
+| Goggles read as a visor bar | Frames too shallow | Frame half-height 0.029 |
+| Block of mask over the nose | Both frames centred on the eyes overlap there | `frame_offset` 0.035, arch cut from below, dip from above |
+| Lumpy mask, crumpled lenses, wavy rims | Cut from the detailed face mesh | Exact outline on the smoothed face; separate fitted lenses |
+| Lenses look like spectacles inside the mask | Lens behind the mask surface | standoff 2 cm |
+| Edge-loop finder merges an opening with the outer edge | Walked by neighbours | Follow face winding (fixed in `boundary_loops`) |
+| Moustache sticks out like a brush, skin shows through | Strands grow along the normal; too sparse | Comb hard sideways and down; dark base layer |
+| Dark blotches on the cheeks | Moustache base on the smoothed face dips under the skin | Lay it on the raw face (smooth=0) |
+| Bright white stitch lines on the hood | Thread colour derived from the base | Pass a thread colour close to the leather |
 
 ## Time per step on this machine (4 CPU cores, no graphics card)
 

@@ -594,3 +594,113 @@ def shearling(name="Shearling", color=(0.56, 0.50, 0.39), clump=0.005, on="objec
     bsdf.inputs["Sheen Tint"].default_value = (*color, 1.0)
     _bump(nodes, links, bsdf, cells.outputs["Distance"], strength=relief, distance=0.0012)
     return mat
+
+
+def frosted_glass(name="Frosted glass", tint=(0.92, 0.94, 0.95), frost_width=0.007, smudge=0.4):
+    """Goggle lens: clear in the middle, frosted and grimy toward the rim, with smudges.
+    Uses the edge_dist attribute (distance to the lens edge) carried by built garments."""
+    mat, nodes, links, bsdf = _new(name)
+    bsdf.inputs["Base Color"].default_value = (*tint, 1.0)
+    bsdf.inputs["Transmission Weight"].default_value = 1.0
+    bsdf.inputs["IOR"].default_value = 1.5
+    bsdf.inputs["Thin Wall"].default_value = True
+    edge = nodes.new("ShaderNodeAttribute"); edge.attribute_name = "edge_dist"
+    near = nodes.new("ShaderNodeMapRange")
+    near.inputs["From Min"].default_value = frost_width
+    near.inputs["From Max"].default_value = 0.0
+    links.new(edge.outputs["Fac"], near.inputs["Value"])
+    spots = nodes.new("ShaderNodeTexNoise")
+    spots.inputs["Scale"].default_value = 90.0
+    spots.inputs["Detail"].default_value = 8.0
+    spots.inputs["Roughness"].default_value = 0.7
+    links.new(_coords(nodes, links), spots.inputs["Vector"])
+    patchy = nodes.new("ShaderNodeMath"); patchy.operation = "MULTIPLY"
+    links.new(near.outputs["Result"], patchy.inputs[0])
+    links.new(spots.outputs["Fac"], patchy.inputs[1])
+    smear = nodes.new("ShaderNodeMath"); smear.operation = "MULTIPLY_ADD"
+    links.new(spots.outputs["Fac"], smear.inputs[0])
+    smear.inputs[1].default_value = smudge * 0.4
+    links.new(patchy.outputs[0], smear.inputs[2])
+    frost = nodes.new("ShaderNodeMath"); frost.operation = "MULTIPLY"; frost.use_clamp = True
+    links.new(smear.outputs[0], frost.inputs[0]); frost.inputs[1].default_value = 1.6
+    links.new(frost.outputs[0], bsdf.inputs["Roughness"])
+    milk = nodes.new("ShaderNodeMix"); milk.data_type = "RGBA"
+    links.new(frost.outputs[0], milk.inputs[0])
+    milk.inputs[6].default_value = (*tint, 1.0)
+    milk.inputs[7].default_value = (0.75, 0.76, 0.76, 1.0)
+    links.new(milk.outputs[2], bsdf.inputs["Base Color"])
+    return mat
+
+
+def add_seam_lines(mat, planes=(), rings=(), above=None, groove=0.0014, stitch_offset=0.003,
+                   stitch=0.003, gap=0.002, color=None):
+    """Sewn seams drawn on a piece by position (object coordinates, metres), for seams that
+    are not mesh edges: e.g. the panels of a leather helmet. planes: x positions of seams
+    running front to back over the top (only above height `above`). rings: (centre, radius)
+    circles on the sides (ear cups), centre given as (x, y, z); measured in the y-z plane.
+    Each seam is a dark groove with a row of stitches either side."""
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
+    coord = nodes.new("ShaderNodeTexCoord")
+    xyz = nodes.new("ShaderNodeSeparateXYZ"); links.new(coord.outputs["Object"], xyz.inputs["Vector"])
+
+    def m(op, a, b=None, clamp=False):
+        n = nodes.new("ShaderNodeMath"); n.operation = op; n.use_clamp = clamp
+        for i, v in enumerate((a, b)):
+            if v is None:
+                continue
+            if isinstance(v, (int, float)):
+                n.inputs[i].default_value = v
+            else:
+                links.new(v, n.inputs[i])
+        return n.outputs[0]
+
+    def line(dist, along):
+        g = m("SUBTRACT", 1.0, m("DIVIDE", m("ABSOLUTE", dist), groove), clamp=True)
+        dash = m("LESS_THAN", m("FRACT", m("DIVIDE", along, stitch + gap)), stitch / (stitch + gap))
+        st = m("SUBTRACT", 1.0, m("DIVIDE", m("ABSOLUTE", m("SUBTRACT", m("ABSOLUTE", dist), stitch_offset)), 0.0006), clamp=True)
+        return g, m("MULTIPLY", st, dash)
+
+    grooves, stitches = [], []
+    for x0 in planes:
+        g, st = line(m("SUBTRACT", xyz.outputs["X"], x0), m("ADD", xyz.outputs["Y"], xyz.outputs["Z"]))
+        if above is not None:
+            keep = m("GREATER_THAN", xyz.outputs["Z"], above)
+            g, st = m("MULTIPLY", g, keep), m("MULTIPLY", st, keep)
+        grooves.append(g); stitches.append(st)
+    for (cx, cy, cz), radius in rings:
+        dy, dz = m("SUBTRACT", xyz.outputs["Y"], cy), m("SUBTRACT", xyz.outputs["Z"], cz)
+        r = m("SQRT", m("ADD", m("MULTIPLY", dy, dy), m("MULTIPLY", dz, dz)))
+        side = m("GREATER_THAN", m("MULTIPLY", xyz.outputs["X"], 1.0 if cx > 0 else -1.0), abs(cx) * 0.5)
+        g, st = line(m("SUBTRACT", r, radius), m("MULTIPLY", m("ARCTAN2", dz, dy), radius))
+        grooves.append(m("MULTIPLY", g, side)); stitches.append(m("MULTIPLY", st, side))
+    groove_all = grooves[0]
+    for g in grooves[1:]:
+        groove_all = m("MAXIMUM", groove_all, g)
+    stitch_all = stitches[0]
+    for st in stitches[1:]:
+        stitch_all = m("MAXIMUM", stitch_all, st)
+    base_link = next((l for l in links if l.to_socket == bsdf.inputs["Base Color"]), None)
+    dark = nodes.new("ShaderNodeMix"); dark.data_type = "RGBA"; dark.blend_type = "MULTIPLY"
+    links.new(m("MULTIPLY", groove_all, 0.7), dark.inputs[0])
+    if base_link is not None:
+        links.new(base_link.from_socket, dark.inputs[6])
+    else:
+        dark.inputs[6].default_value = bsdf.inputs["Base Color"].default_value
+    dark.inputs[7].default_value = (0.25, 0.25, 0.25, 1.0)
+    thread = nodes.new("ShaderNodeMix"); thread.data_type = "RGBA"
+    links.new(stitch_all, thread.inputs[0])
+    links.new(dark.outputs[2], thread.inputs[6])
+    b = bsdf.inputs["Base Color"].default_value
+    thread.inputs[7].default_value = (*(color or tuple(min(1.0, 0.06 + 1.8 * b[i]) for i in range(3))), 1.0)
+    links.new(thread.outputs[2], bsdf.inputs["Base Color"])
+    height = m("SUBTRACT", m("MULTIPLY", stitch_all, 0.5), groove_all)
+    bump = nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = 0.6
+    bump.inputs["Distance"].default_value = 0.0008
+    links.new(height, bump.inputs["Height"])
+    normal_link = next((l for l in links if l.to_socket == bsdf.inputs["Normal"]), None)
+    if normal_link is not None:
+        links.new(normal_link.from_socket, bump.inputs["Normal"])
+    links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat

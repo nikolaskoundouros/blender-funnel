@@ -525,6 +525,225 @@ def helmet(name="helmet", ease=0.006, thickness=0.004, material=None, cheeks=Fal
                     skin_margin=0.3, soften=12)
 
 
+def _round_rect(dx, dz, hx, hz, r):
+    """Signed distance (metres) to a rounded rectangle: negative inside."""
+    qx, qz = np.abs(dx) - (hx - r), np.abs(dz) - (hz - r)
+    return np.hypot(np.maximum(qx, 0.0), np.maximum(qz, 0.0)) + np.minimum(np.maximum(qx, qz), 0.0) - r
+
+
+_FACE = {}
+
+
+def face_surface(base_verts, iterations=30):
+    """Head and face of the body, smoothed (Taubin) so pieces laid on it (goggle masks, a
+    moustache base) do not follow eyelids, nostrils and lip creases. Returns positions and
+    normals for every base vertex, in Blender coordinates; only the head is smoothed."""
+    key = (iterations, float(base_verts[::173].sum()))
+    if key in _FACE:
+        return _FACE[key]
+    c = _body_coordinates()
+    pos = human.to_blender(base_verts).copy()
+    head = (np.arange(len(pos)) < human.BODY_VERTS) & (c["part"] == "neck")
+    faces = [f for f in human.base_mesh()[2] if all(head[v] for v in f)]
+    e = np.array(sorted({(min(a, b), max(a, b)) for f in faces for a, b in zip(f, f[1:] + f[:1])}))
+    deg = np.zeros(len(pos)); np.add.at(deg, e[:, 0], 1.0); np.add.at(deg, e[:, 1], 1.0)
+    free = deg > 0
+    for k in range(2 * iterations):
+        mean = np.zeros_like(pos)
+        np.add.at(mean, e[:, 0], pos[e[:, 1]]); np.add.at(mean, e[:, 1], pos[e[:, 0]])
+        step = 0.5 if k % 2 == 0 else -0.53
+        pos[free] += step * (mean[free] / deg[free, None] - pos[free])
+    normals = np.zeros_like(pos)
+    for f in faces:
+        n = np.cross(pos[f[1]] - pos[f[0]], pos[f[2]] - pos[f[0]])
+        for v in f:
+            normals[v] += n
+    normals /= np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-12)
+    _FACE[key] = (pos, normals, faces)
+    return _FACE[key]
+
+
+def _outline_from_sdf(sdf, centre, n=220, reach=0.15):
+    """Zero contour of a 2D signed-distance function, found along rays from `centre`
+    (the shape must be star-shaped from there). Returns points in order."""
+    pts = []
+    for a in np.linspace(0.0, 2 * np.pi, n, endpoint=False):
+        d = np.array([np.cos(a), np.sin(a)])
+        lo, hi = 0.0, reach
+        for _ in range(40):
+            mid = (lo + hi) / 2.0
+            q = centre + d * mid
+            if sdf(q[0], q[1]) < 0:
+                lo = mid
+            else:
+                hi = mid
+        pts.append(centre + d * lo)
+    return np.array(pts)
+
+
+def face_patch(name, outer, holes=(), ease=0.01, thickness=0.006, material=None, smooth=30,
+               step=0.0035, puff=0.0, puff_width=0.006):
+    """A piece drawn as exact outlines on the face and wrapped onto the smoothed face.
+    outer, holes: closed polygons of (x, z) points in metres, in the unmorphed body's
+    coordinates (x to the character's left, z up), seen from the front."""
+    from mathutils import geometry as geo
+    chart_pos, chart_n, faces_all = face_surface(human.base_mesh()[0], smooth)
+    tris = []
+    for f in faces_all:
+        for t in ((f[0], f[1], f[2]), (f[0], f[2], f[3])) if len(f) == 4 else ((f[0], f[1], f[2]),):
+            if chart_n[list(t), 1].mean() < -0.15:          # front-facing only: no overlaps in the chart
+                tris.append(t)
+    tris = np.array(tris)
+    flat = chart_pos[:, [0, 2]]
+    outer = _resample(np.asarray(outer, dtype=float), step)
+    holes = [_resample(np.asarray(h, dtype=float), step) for h in holes]
+    loops = [outer] + holes
+    lo, hi = outer.min(axis=0), outer.max(axis=0)
+    grid = np.array([(x + (step * 0.5 if j % 2 else 0.0), z) for j, z in enumerate(np.arange(lo[1] + step, hi[1], step * 0.866))
+                     for x in np.arange(lo[0] + step, hi[0], step)])
+    keep = _inside_polygon(grid, outer)
+    for h in holes:
+        keep &= ~_inside_polygon(grid, h)
+    grid = grid[keep]
+    edge_pts = np.concatenate(loops)
+    grid = grid[[np.min(np.linalg.norm(edge_pts - g, axis=1)) > step * 0.55 for g in grid]]
+    pts = np.concatenate(loops + [grid])
+    constraints, base = [], 0
+    for loop in loops:
+        n = len(loop)
+        constraints += [(base + i, base + (i + 1) % n) for i in range(n)]
+        base += n
+    out_v, _, out_f, _, _, _ = geo.delaunay_2d_cdt([tuple(q) for q in pts], constraints, [], 1, 1e-8)
+    out_v = np.array([tuple(q) for q in out_v])
+    faces = []
+    for f in out_f:
+        if len(f) != 3:
+            continue
+        cpt = out_v[list(f)].mean(axis=0)[None, :]
+        if _inside_polygon(cpt, outer)[0] and not any(_inside_polygon(cpt, h)[0] for h in holes):
+            faces.append(tuple(f))
+    A, B, C = flat[tris[:, 0]], flat[tris[:, 1]], flat[tris[:, 2]]
+    v0, v1 = B - A, C - A
+    den = v0[:, 0] * v1[:, 1] - v1[:, 0] * v0[:, 1]
+    ok = np.abs(den) > 1e-12
+    tris, A, v0, v1, den = tris[ok], A[ok], v0[ok], v1[ok], den[ok]
+    tri_out, w_out = [], []
+    for p_ in out_v:
+        d = p_ - A
+        u = (d[:, 0] * v1[:, 1] - v1[:, 0] * d[:, 1]) / den
+        v = (v0[:, 0] * d[:, 1] - d[:, 0] * v0[:, 1]) / den
+        best = int(np.argmax(np.minimum.reduce([u, v, 1.0 - u - v])))
+        w = np.clip(np.array([1.0 - u[best] - v[best], u[best], v[best]]), 0.0, None)
+        tri_out.append(tris[best]); w_out.append(w / w.sum())
+    # front view, x to the left: counter-clockwise in (x, z) faces the viewer
+    spec = _garment(name, (0, human.BODY_VERTS - 1), None, ease, thickness,
+                    material or materials.plain(name, (0.04, 0.04, 0.045), 0.55), skin_margin=None)
+    spec["explicit"] = {"faces": faces, "tri": np.array(tri_out), "weight": np.array(w_out),
+                        "uv": out_v / materials.METRES_PER_UV}
+    spec["surface"] = ("face", smooth)
+    spec["puff"], spec["puff_width"], spec["puff_shape"] = puff, puff_width, 0.5
+    return spec
+
+
+def goggle_mask(eye_offset=0.032, frame_offset=0.035, lift=0.0, lens=(0.026, 0.020, 0.010),
+                frame=(0.035, 0.029, 0.016), bridge_drop=0.006, blend=0.012, ease=0.008,
+                thickness=0.007, puff=0.0025, puff_width=0.014, material=None):
+    """The padded goggle mask as one smooth band: two rounded frames blended together over
+    the nose (a soft V dipping over the bridge), with an opening for each lens. Drawn as
+    exact outlines and laid on the smoothed face. (The first mask was cut from the face
+    mesh and came out lumpy, with a blocky nose piece.)"""
+    c = _body_coordinates()
+    ez = c["eye"][2] + lift
+
+    def smin(a, b, k):
+        h = np.clip(0.5 + 0.5 * (b - a) / k, 0.0, 1.0)
+        return b + (a - b) * h - k * h * (1.0 - h)
+
+    def sdf(x, z):
+        left = _round_rect(x - frame_offset, z - ez, *frame)
+        right = _round_rect(x + frame_offset, z - ez, *frame)
+        shape = smin(left, right, blend)
+        # carve a soft arch over the nose from below and a shallow dip from above, leaving a
+        # narrow bridge (the first version left a 4 cm tall bar across the nose)
+        below = np.hypot(x / 0.016, (z - (ez - frame[1] - bridge_drop)) / 0.034) - 1.0
+        above = np.hypot(x / 0.012, (z - (ez + frame[1] + 0.010)) / 0.016) - 1.0
+        return max(shape, -below * 0.012, -above * 0.012)
+
+    outer = _outline_from_sdf(sdf, np.array([0.0, ez + 0.008]))
+    holes = []
+    for sx in (1.0, -1.0):
+        holes.append(_outline_from_sdf(lambda x, z: _round_rect(x - sx * eye_offset, z - ez, *lens),
+                                       np.array([sx * eye_offset, ez]), n=120, reach=0.05))
+    spec = face_patch("goggle_mask", outer, holes, ease=ease, thickness=thickness, puff=puff, puff_width=puff_width,
+                      material=material or materials.plain("Goggle mask", (0.035, 0.037, 0.04), 0.55))
+    spec["relax"] = 0
+    return spec
+
+
+def moustache_base(width=0.031, top=0.011, bottom=-0.0005, curve_top=6.0, curve_bottom=9.0,
+                   material=None):
+    """A thin dark layer under a strand moustache, so skin does not show between strands.
+    Shape: a band on the upper lip, narrowing toward the ends and curving down at them.
+    Measurements in metres relative to the centre of the upper lip."""
+    from . import accessories
+    lm = accessories.face_landmarks(human.base_mesh()[0])
+    lip_z = float(lm["lip"][2])
+    xs = np.linspace(-width, width, 60)
+    upper = [(x, lip_z + top - curve_top * x * x) for x in xs]
+    lower = [(x, lip_z + bottom - curve_bottom * x * x) for x in xs[::-1]]
+    outline = _smooth_outline(np.array(upper + lower), rounds=2)
+    # Laid on the unsmoothed face (smooth=0): on the smoothed one it dipped under the skin
+    # in patches and showed as dark blotches on the cheeks.
+    spec = face_patch("moustache_base", outline, ease=0.0018, thickness=0.0015, smooth=0, step=0.0025,
+                      material=material or materials.plain("Moustache base", (0.012, 0.009, 0.007), 0.55))
+    return spec
+
+
+def flying_helmet(name="helmet", opening=(0.058, 0.083), drop=0.0375, lower=0.175, ease=0.007,
+                  thickness=0.004, material=None, soften=12):
+    """Leather flying hood: covers the crown, back, ears and neck, with an oval opening for
+    the face reaching from the forehead to the chin. The flaps along the jaw meet under
+    the chin. opening: half-width and half-height of the face oval in metres; drop: how
+    far its centre sits below the eyes; lower: how far below the eyes the hood reaches."""
+    c = _body_coordinates()
+    vb, eye = c["vb"], c["eye"]
+    front = vb[:, 1] < eye[1] + 0.05
+    r = np.hypot(vb[:, 0] / opening[0], (vb[:, 2] - (eye[2] - drop)) / opening[1])
+    face = np.where(front, (r - 1.0) * opening[0], 0.2)
+    field = np.minimum(face, vb[:, 2] - (eye[2] - lower))
+    field = np.where(c["part"] == "neck", field, -FAR)
+    return _garment(name, (0, human.BODY_VERTS - 1), field, ease, thickness,
+                    material or materials.leather("Helmet leather", (0.085, 0.088, 0.098)),
+                    skin_margin=0.012, soften=soften)
+
+
+def goggle_parts(eye_offset=0.032, frame_offset=0.037, lift=0.002, lens=(0.026, 0.0155, 0.009), frame=(0.036, 0.024, 0.014),
+                 bridge=(0.010, 0.0065, 0.004), mask_ease=0.010, mask_thickness=0.007, puff=0.006,
+                 lens_ease=0.016, mask_material=None, lens_material=None):
+    """Goggles worn over the eyes, as two pieces cut from the face: the padded mask (two
+    rounded frames joined over the nose, with a hole for each lens) and the two lenses.
+    Sizes are half-width, half-height and corner radius in metres, measured on the face."""
+    c = _body_coordinates()
+    vb, eye = c["vb"], c["eye"]
+    x, z = vb[:, 0], vb[:, 2] - (eye[2] + lift)
+    face_front = (vb[:, 1] < eye[1] + 0.012) & (np.abs(x) < 0.095) & (c["part"] == "neck")
+    lens_d = np.minimum(_round_rect(x - eye_offset, z, *lens), _round_rect(x + eye_offset, z, *lens))
+    # Frames are centred a little outside the eyes so they do not meet over the nose (with
+    # both centred on the eyes, their overlap covered the top of the nose like a block).
+    outer = np.minimum.reduce([_round_rect(x - frame_offset, z, *frame), _round_rect(x + frame_offset, z, *frame),
+                               _round_rect(x, z - bridge[2], bridge[0], bridge[1], 0.004)])   # bridge: half-width, half-height, raise
+    mask_field = np.where(face_front, np.minimum(-outer, lens_d), -FAR)
+    lens_field = np.where(face_front, -lens_d + 0.0015, -FAR)          # tucked just under the mask
+    mask = _garment("goggle_mask", (0, human.BODY_VERTS - 1), mask_field, mask_ease, mask_thickness,
+                    mask_material or materials.plain("Goggle mask", (0.035, 0.037, 0.04), 0.55), skin_margin=None)
+    mask["puff"], mask["puff_width"], mask["puff_shape"] = puff, 0.006, 0.5
+    mask["relax"] = 6
+    glass = _garment("goggle_lenses", (0, human.BODY_VERTS - 1), lens_field, lens_ease, 0.0015,
+                     lens_material or materials.glass("Goggle glass", thin=True), skin_margin=None)
+    glass["relax"] = 30                                                  # nearly flat across the eye socket
+    return mask, glass
+
+
 # ------------------------------------------------------------------ building
 
 def _cut(garment):
@@ -835,15 +1054,20 @@ def build(scene, base_verts, garment, name, parent=None):
         verts = (surf[tri] * weight[:, :, None]).sum(axis=1)
         n = (normals[tri] * weight[:, :, None]).sum(axis=1)
         n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
-        if garment.get("puff"):                   # a filled pocket or a cushion bulges in the middle
-            inner, _ = edge_attributes(verts, faces)
-            reach = garment.get("puff_width", 0.035)
-            ease = ease + garment["puff"] * np.clip(inner / reach, 0.0, 1.0)[:, None] ** garment.get("puff_shape", 0.7)
+    elif garment.get("surface") and garment["surface"][0] == "face":
+        surf, normals, _ = face_surface(base_verts, garment["surface"][1])
+        verts = (surf[tri] * weight[:, :, None]).sum(axis=1)
+        n = (normals[tri] * weight[:, :, None]).sum(axis=1)
+        n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
     else:
         verts = (all_bl[tri] * weight[:, :, None]).sum(axis=1)
         # Normals are taken before panels are moved apart, so both copies of a seam
         # vertex get the same push outward.
         n = _vertex_normals_welded(verts, faces)
+    if garment.get("puff"):                       # a filled pocket or a cushion bulges in the middle
+        inner, _ = edge_attributes(verts, faces)
+        reach = garment.get("puff_width", 0.035)
+        ease = ease + garment["puff"] * np.clip(inner / reach, 0.0, 1.0)[:, None] ** garment.get("puff_shape", 0.7)
     verts = verts + ease * n
     if garment.get("relax"):
         # Smooth the piece with its outline held still. Done here rather than with
