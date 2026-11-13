@@ -98,9 +98,23 @@ def _body_coordinates():
             front /= np.linalg.norm(front)
             out /= np.linalg.norm(out)
             theta[rows] = np.degrees(np.arctan2(r @ out, r @ front))
+    # Same for the arms: 0 at the front, +90 along the top of the arm (away from the body).
+    arm_theta = np.zeros(len(vb))
+    for sd, sign, mask in (("L", 1.0, left), ("R", -1.0, ~left)):
+        sh, el, wr = joint(f"upperarm01.{sd}"), joint(f"lowerarm01.{sd}"), joint(f"wrist.{sd}")
+        for base, axis, rows in ((sh, el - sh, mask & (coords["arm"] <= 1.0)),
+                                 (el, wr - el, mask & (coords["arm"] > 1.0))):
+            a = axis / np.linalg.norm(axis)
+            r = vb[rows] - base
+            r -= np.outer(r @ a, a)
+            front = np.array([0.0, -1.0, 0.0]) - a * (-a[1])
+            out = np.array([sign, 0.0, 0.0]) - a * (sign * a[0])
+            front /= np.linalg.norm(front)
+            out /= np.linalg.norm(out)
+            arm_theta[rows] = np.degrees(np.arctan2(r @ out, r @ front))
     z_hip, z_neck = joint("upperleg01.L")[2], joint("neck01")[2]
     zs = vb[SKIRT[0]:SKIRT[1] + 1, 2]
-    _COORDS = {"part": part, "vb": vb, "eye": joint("eye.L"), "theta": theta, "left": left,
+    _COORDS = {"part": part, "vb": vb, "eye": joint("eye.L"), "theta": theta, "arm_theta": arm_theta, "left": left,
                "h": (vb[:, 2] - z_hip) / (z_neck - z_hip),
                "arm": coords["arm"], "leg": coords["leg"],
                "k": (zs.max() - vb[:, 2]) / (zs.max() - zs.min())}
@@ -155,26 +169,32 @@ def baggy_ease(outer=0.032, inner=0.008, waist=0.012, ankle=0.016):
 _LEG_CHART = {}
 
 
-def _leg_chart(side_left):
-    """The tights shell on one leg as triangles in flat leg coordinates, in metres:
-    x = round the leg (0 at the front), y = down the leg. Used to wrap flat pieces on."""
-    if side_left in _LEG_CHART:
-        return _LEG_CHART[side_left]
+LIMBS = {"leg": {"parts": ("leg", "foot"), "theta": "theta", "radius": 0.09, "length": 0.42},
+         "arm": {"parts": ("arm", "hand"), "theta": "arm_theta", "radius": 0.05, "length": 0.29}}
+
+
+def _leg_chart(side_left, limb="leg"):
+    """The tights shell on one limb as triangles in flat limb coordinates, in metres:
+    x = round the limb (0 at the front), y = down the limb. Used to wrap flat pieces on."""
+    key = (limb, side_left)
+    if key in _LEG_CHART:
+        return _LEG_CHART[key]
     c = _body_coordinates()
+    spec = LIMBS[limb]
     lo, hi = TIGHTS
-    flat = np.stack([np.radians(c["theta"]) * LEG_RADIUS, c["leg"] * LEG_LENGTH], axis=1)
+    flat = np.stack([np.radians(c[spec["theta"]]) * spec["radius"], c[limb] * spec["length"]], axis=1)
     tris = []
     for f in human.base_mesh()[2]:
         if not all(lo <= v <= hi for v in f):
             continue
-        if not all(c["part"][v] in ("leg", "foot") and c["left"][v] == side_left for v in f):
+        if not all(c["part"][v] in spec["parts"] and c["left"][v] == side_left for v in f):
             continue
         for t in ((f[0], f[1], f[2]), (f[0], f[2], f[3])) if len(f) == 4 else ((f[0], f[1], f[2]),):
-            th = c["theta"][list(t)]
+            th = c[spec["theta"]][list(t)]
             if th.max() - th.min() < 180.0:          # skip triangles that wrap round the back seam
                 tris.append(t)
     tris = np.array(tris)
-    _LEG_CHART[side_left] = (flat, tris)
+    _LEG_CHART[key] = (flat, tris)
     return flat, tris
 
 
@@ -213,9 +233,9 @@ def _inside_polygon(points, polygon):
     return inside
 
 
-def _wrap(points, side_left):
-    """Bind flat leg-coordinate points to the shell: (tri, weight) per point."""
-    flat, tris = _leg_chart(side_left)
+def _wrap(points, side_left, limb="leg"):
+    """Bind flat limb-coordinate points to the shell: (tri, weight) per point."""
+    flat, tris = _leg_chart(side_left, limb)
     A, B, Cc = flat[tris[:, 0]], flat[tris[:, 1]], flat[tris[:, 2]]
     v0, v1 = B - A, Cc - A
     den = v0[:, 0] * v1[:, 1] - v1[:, 0] * v0[:, 1]
@@ -237,7 +257,7 @@ def _wrap(points, side_left):
 
 def leg_patch(name, s=(0.18, 0.85), theta=(-35.0, 50.0), side="both", ease=0.012,
               thickness=0.0022, material=None, smooth_shell=0, snaps=(), corner=0.012,
-              step=0.008, cut=None, puff=0.0):
+              step=0.008, cut=None, puff=0.0, limb="leg"):
     """A flat piece lying on the leg: a patch pocket, a pocket flap, a reinforcement.
 
     Drawn as an exact rounded rectangle in flat leg coordinates and wrapped onto the leg,
@@ -252,8 +272,9 @@ def leg_patch(name, s=(0.18, 0.85), theta=(-35.0, 50.0), side="both", ease=0.012
     puff: how far the middle of the patch bulges out, in metres (a filled pocket).
     """
     from mathutils import geometry as geo
-    outline = _rounded_rectangle(np.radians(theta[0]) * LEG_RADIUS, np.radians(theta[1]) * LEG_RADIUS,
-                                 s[0] * LEG_LENGTH, s[1] * LEG_LENGTH, corner, step)
+    radius, length = LIMBS[limb]["radius"], LIMBS[limb]["length"]
+    outline = _rounded_rectangle(np.radians(theta[0]) * radius, np.radians(theta[1]) * radius,
+                                 s[0] * length, s[1] * length, corner, step)
     lo, hi = outline.min(axis=0), outline.max(axis=0)
     gx = np.arange(lo[0] + step, hi[0] - step * 0.5, step)
     gy = np.arange(lo[1] + step, hi[1] - step * 0.5, step * 0.866)
@@ -269,7 +290,7 @@ def leg_patch(name, s=(0.18, 0.85), theta=(-35.0, 50.0), side="both", ease=0.012
     faces = [tuple(f) for f in out_f if len(f) == 3]
     pieces = []
     for side_left in {"L": (True,), "R": (False,), "both": (True, False)}[side]:
-        tri, weight = _wrap(out_v, side_left)
+        tri, weight = _wrap(out_v, side_left, limb)
         f = faces if side_left else [tuple(reversed(t)) for t in faces]   # keep normals outward
         pieces.append((f, tri, weight, out_v))
     faces_all, tri_all, w_all, uv_all, base = [], [], [], [], 0
@@ -316,6 +337,42 @@ def skirt(name="skirt", length=0.55, ease=0.004, thickness=0.003, material=None)
     c = _body_coordinates()
     return _garment(name, SKIRT, length - c["k"], ease, thickness,
                     material or materials.fabric((0.25, 0.27, 0.32), on="garment"), skin_margin=None)
+
+
+def vest(name="vest", low=0.28, high=1.02, opening=0.045, armhole=(0.11, 0.075), ease=0.045,
+         thickness=0.028, material=None, smooth_shell=0):
+    """Padded vest over the chest, sides and back: open down the centre front (half-width
+    `opening`, metres), open armholes, from torso height `low` up to `high` at the collar.
+    armhole: half-height and half-depth in metres of the oval cut round each shoulder.
+    (The first version cut armholes by the arm coordinate; with arms angled down most of
+    the chest counted as arm and the vest shrank to two tabs.)"""
+    c = _body_coordinates()
+    vb = c["vb"]
+    bones = rig.read_rig("default")
+    field = np.minimum(c["h"] - low, high - c["h"])
+    front = vb[:, 1] < vb[TIGHTS[0]:TIGHTS[1] + 1, 1].mean()
+    field = np.where(front, np.minimum(field, (np.abs(vb[:, 0]) - opening) / 0.25), field)
+    for sd in ("L", "R"):
+        j = np.array(rig._position(bones[f"upperarm01.{sd}"]["head"], vb))
+        lateral = np.abs(vb[:, 0]) > abs(j[0]) - 0.07
+        oval = np.hypot((vb[:, 2] - (j[2] - 0.035)) / armhole[0], (vb[:, 1] - j[1]) / armhole[1])
+        same_side = np.sign(vb[:, 0]) == np.sign(j[0])
+        field = np.where(lateral & same_side, np.minimum(field, (oval - 1.0) * 0.1), field)
+    field = np.where(np.isin(c["part"], ("torso", "neck")), field, -FAR)
+    return _garment(name, TIGHTS, field, ease, thickness,
+                    material or materials.fabric((0.60, 0.38, 0.12), on="garment"),
+                    skin_margin=None, smooth_shell=smooth_shell)
+
+
+def band(name="cuff", limb="arm", start=1.72, end=1.97, ease=0.04, thickness=0.02,
+         material=None, smooth_shell=0, cut=None):
+    """A ring round a limb between two limb coordinates: turned-back cuffs, boot tops."""
+    c = _body_coordinates()
+    field = np.minimum(c[limb] - start, end - c[limb]) * 0.3
+    field = np.where(np.isin(c["part"], LIMBS[limb]["parts"]), field, -FAR)
+    return _garment(name, TIGHTS, field, ease, thickness,
+                    material or materials.plain("Shearling", (0.62, 0.55, 0.42), 0.95),
+                    skin_margin=None, smooth_shell=smooth_shell, cut=cut)
 
 
 def collar(name="collar", low=0.88, high=1.06, ease=0.022, thickness=0.02, material=None):

@@ -385,3 +385,30 @@ def add_stitches(mat, inset=0.0045, stitch=0.0038, gap=0.0022, width=0.0012, row
         links.new(normal_link.from_socket, bump.inputs["Normal"])
     links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     return mat
+
+
+def add_channels(mat, width=0.07, depth=0.009, axis="X"):
+    """Padded channels (quilted tubes) across one object axis, as real geometry: the
+    surface is pushed out between seam lines every `width` metres, by up to `depth`.
+    Needs enough mesh resolution at render time (a few vertices per channel)."""
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    out = next(n for n in nodes if n.type == "OUTPUT_MATERIAL")
+    coord = nodes.new("ShaderNodeTexCoord")
+    split = nodes.new("ShaderNodeSeparateXYZ")
+    links.new(coord.outputs["Object"], split.inputs["Vector"])
+    wave = nodes.new("ShaderNodeMath"); wave.operation = "SINE"
+    scale = nodes.new("ShaderNodeMath"); scale.operation = "MULTIPLY"
+    scale.inputs[1].default_value = 3.14159265 / width
+    links.new(split.outputs[axis], scale.inputs[0])
+    links.new(scale.outputs[0], wave.inputs[0])
+    absval = nodes.new("ShaderNodeMath"); absval.operation = "ABSOLUTE"
+    links.new(wave.outputs[0], absval.inputs[0])
+    puff = nodes.new("ShaderNodeMath"); puff.operation = "POWER"; puff.inputs[1].default_value = 0.45
+    links.new(absval.outputs[0], puff.inputs[0])
+    disp = nodes.new("ShaderNodeDisplacement")
+    disp.inputs["Midlevel"].default_value = 0.0
+    disp.inputs["Scale"].default_value = depth
+    links.new(puff.outputs[0], disp.inputs["Height"])
+    links.new(disp.outputs["Displacement"], out.inputs["Displacement"])
+    mat.displacement_method = "BOTH"
+    return mat
