@@ -13,6 +13,7 @@ tested building blocks, and to build Blender scenes from those blocks.
 | `recipes/` | Tested functions for lights, world, colour, camera, backdrop, materials, human characters, skeletons and motion |
 | `tests/` | Re-runs every recipe; catches breakage when Blender changes |
 | `runs/` | One folder per scene built: script, renders, numbers, written review |
+| `playbooks/` | Ordered procedures for repeatable jobs (outfits so far), with a log of every attempt |
 | `tools/` | Page-to-text converter, image statistics, on-screen label lookup |
 
 `CLAUDE.md` holds the operating rules an AI assistant follows when working here.
