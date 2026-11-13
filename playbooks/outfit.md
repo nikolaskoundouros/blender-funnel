@@ -273,3 +273,19 @@ Reference 16 deg / 0.73 / 0.85.
 | Hair yellower and darker (22 deg, value 0.74) | Direct colour (1.0, 0.10, 0.03) and key light 40 to 58 W |
 | Fine fibres wash out to pink (saturation 0.50) | Colour (1.0, 0.075, 0.02), roughness 0.45: 18 deg / 0.62 / 0.82 |
 | Curls too big (owner) | Coil radius 0.011 to 0.009, band 0.016 to 0.012 |
+
+## Casual outfit: tee, track pants, trainers (run 013, 6 steps, ~30 s build, ~70 s for four views)
+
+`runs/013-boy-outfit/outfit.py`; the character's hair, skin and eyes come from `looks.py`.
+Track pants: `trousers(waist=0.14, cut={"thigh": 0.088, "knee": 0.074, "ankle": 0.062,
+"folds": 0.005}, smooth_shell=30)`. Side stripe: `leg_patch(s=(0.02, 1.92), theta=(84, 96),
+ease=trouser ease + 0.0035, thickness 0.0008, corner 0.002, step 0.004)`. Tee: `top(sleeve=0.85,
+collar=0.965, hem=0.0, ease=0.012, smooth_shell=30)`. Trainers: asset `shoes05` with the upper
+tinted by a multiply above 2.5 cm object height (sole stays white).
+
+| Symptom | Fix |
+|---|---|
+| Stripe invisible | At trouser ease + 1.2 mm it sat inside the 3 mm trouser fabric. Use + 3.5 mm (more than the thickness) |
+| Tee hem pointed down front and back (hem -0.13) | hem 0.0: the torso height coordinate bends near the crotch |
+| Draped tee (route B, cotton) over trousers: trousers poke through (step 3), or the tee rides up into a crop top (step 4, thicker trouser collider) | Trousers flare wider at the hips than the tee's hem. Not solved; shaped tee used. Next: give the tee a flared hem or drape before adding the trousers |
+| Skin at the back between tee and trousers (waist 0.06) | waist 0.14 |
