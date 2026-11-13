@@ -255,7 +255,7 @@ def haircut(scene, base_verts, style=short_back_and_sides, guides=400, children=
 
 
 def grow_ringlets(scalp, roots, style, steps=48, volume=0.028, rise=0.35, coil_radius=0.007,
-                  coil_pitch=0.022, coil_start=0.12, droop=0.5, seed=0):
+                  coil_pitch=0.022, coil_start=0.12, droop=0.5, seed=0, return_frame=False):
     """Guide strands for curly hair, after Blender's bundled "Curl Hair Curves" node group
     (Curl Start, Radius, Frequency, Random Offset per curve): each guide is the axis of one
     ringlet that leaves the scalp, stands off it by up to `volume` metres, then coils round
@@ -303,7 +303,20 @@ def grow_ringlets(scalp, roots, style, steps=48, volume=0.028, rise=0.35, coil_r
     t = np.linspace(0.0, 1.0, steps)[None, :]
     ramp = np.clip((t - coil_start) / 0.15, 0.0, 1.0) * rng.uniform(0.8, 1.2, n)[:, None]
     r = coil_radius * ramp
-    pts = axis + (np.cos(ang) * r)[..., None] * us + (np.sin(ang) * r)[..., None] * vs
+    radial = np.cos(ang)[..., None] * us + np.sin(ang)[..., None] * vs
+    pts = axis + r[..., None] * radial
+    if return_frame:
+        # The two directions a flat ribbon lock spans: thickness outward from the axis, and
+        # width across the coiling strand (the axis direction minus its part along the
+        # strand; the plain axis direction mostly runs along the strand and gave thin
+        # noodles in step 11).
+        ct = np.gradient(pts, axis=1)
+        ct /= np.maximum(np.linalg.norm(ct, axis=2, keepdims=True), 1e-9)
+        across = tang - ct * np.einsum("ijk,ijk->ij", tang, ct)[..., None]
+        bad = np.linalg.norm(across, axis=2) < 0.2         # near the straight root
+        across[bad] = np.cross(ct, radial)[bad]
+        across /= np.maximum(np.linalg.norm(across, axis=2, keepdims=True), 1e-9)
+        return pts, across, radial
     return pts
 
 
@@ -343,17 +356,57 @@ def interpolate_ringlets(scalp, guides, child_roots, spread=0.0035, tip_spread=0
     return flat.reshape(out.shape)
 
 
+def interpolate_ribbons(scalp, guides, across, radial, child_roots, width=0.012, thickness=0.0015,
+                        taper=0.5, frizz=0.0005, escape=0.015, width_jitter=0.3, seed=0):
+    """Children for wide, flat curls ("ribbon" locks, as in run 012's reference): each lock
+    is a band `width` wide laid along its coil's axis and `thickness` deep, so when the
+    guide coils the band curls like a ribbon instead of a round spring. The band narrows
+    to (1 - taper) of its width at the tip."""
+    rng = np.random.default_rng(seed)
+    g_roots = guides[:, 0]
+    steps = guides.shape[1]
+    t = np.linspace(0.0, 1.0, steps)[None, :, None]
+    out = np.zeros((len(child_roots), steps, 3))
+    for lo in range(0, len(child_roots), 4096):
+        r = child_roots[lo:lo + 4096]
+        d = np.linalg.norm(r[:, None, :] - g_roots[None, :, :], axis=2)
+        own = np.argmin(d, axis=1)
+        a = rng.uniform(-0.5, 0.5, (len(r), 1, 1))                        # position across the band
+        b = rng.normal(0.0, 0.5, (len(r), 1, 1))                          # position through it
+        lock_w = (1.0 + width_jitter * (2.0 * np.random.default_rng(seed + 7).random(len(guides)) - 1.0))[own]
+        w = width * lock_w[:, None, None] * (1.0 - taper * t)
+        band = across[own] * (a * w) + radial[own] * (b * thickness)
+        root_blend = np.clip(1.0 - t / 0.12, 0.0, 1.0)
+        off = (r - g_roots[own])[:, None, :]
+        strand = guides[own] + off * root_blend + band * (1.0 - root_blend)
+        fz = frizz * (1.0 + 2.0 * (rng.random((len(r), 1, 1)) < escape))
+        strand = strand + np.cumsum(rng.normal(size=strand.shape), axis=1) * fz * t / np.sqrt(steps)
+        out[lo:lo + 4096] = strand
+    flat = out.reshape(-1, 3)
+    q, n = scalp.nearest(flat)
+    depth = np.einsum("ij,ij->i", flat - q, n)
+    under = depth < 0.0008
+    flat[under] = q[under] + n[under] * 0.0008
+    return flat.reshape(out.shape)
+
+
 def curls(scene, base_verts, style=curly_mop, guides=320, children=50000, steps=48, mat=None, parent=None,
-          radius=0.00007, seed=0, grow_args=None, child_args=None):
+          radius=0.00007, seed=0, grow_args=None, child_args=None, ribbon=None):
+    """ribbon: None for round ringlets, or a dict for flat ribbon locks (see
+    interpolate_ribbons: width, thickness, taper)."""
     """A head of curls in one call. Returns (object, timings)."""
     import time
     started = time.time()
     scalp = Scalp(base_verts)
     g_roots, _ = sample_roots(scalp, guides, style, seed=seed)
-    g = grow_ringlets(scalp, g_roots, style, steps=steps, seed=seed, **(grow_args or {}))
+    g, across, radial = grow_ringlets(scalp, g_roots, style, steps=steps, seed=seed, return_frame=True,
+                                      **(grow_args or {}))
     t_guides = time.time() - started
     c_roots, _ = sample_roots(scalp, children, style, seed=seed + 1)
-    kids = interpolate_ringlets(scalp, g, c_roots, seed=seed + 2, **(child_args or {}))
+    if ribbon is not None:
+        kids = interpolate_ribbons(scalp, g, across, radial, c_roots, seed=seed + 2, **ribbon)
+    else:
+        kids = interpolate_ringlets(scalp, g, c_roots, seed=seed + 2, **(child_args or {}))
     obj = build(scene, "Curls", kids, np.zeros(len(kids)), mat or material(), radius=radius, parent=parent)
     return obj, {"guides": len(g), "children": len(kids), "guide_seconds": round(t_guides, 1),
                  "total_seconds": round(time.time() - started, 1)}

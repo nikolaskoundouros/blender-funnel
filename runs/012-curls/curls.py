@@ -3,7 +3,7 @@
 Reference: the boy in "My Mom Cracked The Dinosaur" (owner-supplied clip, kept out of git).
 Usage: python runs/012-curls/curls.py [width height samples]
 Environment: GUIDES, CHILDREN, COIL (radius m), PITCH (m per turn), VOLUME (m), LENGTH (m),
-SPREAD (lock width m), COLOR ("r,g,b" for direct colour) or MELANIN/REDNESS, OUT, VIEWS.
+SPREAD (round lock width m), RIBBON (flat lock width m, 0 for round springs), THICK, TAPER, RFRIZZ, COLOR ("r,g,b" for direct colour) or MELANIN/REDNESS, OUT, VIEWS.
 """
 import json
 import os
@@ -55,11 +55,14 @@ def curl_material():
 
 
 obj, info = haircut.curls(
-    scene, base_verts, guides=env("GUIDES", 280), children=env("CHILDREN", 100000), mat=curl_material(), parent=boy,
+    scene, base_verts, guides=env("GUIDES", 220), children=env("CHILDREN", 100000), mat=curl_material(), parent=boy,
     style=lambda sc, p: haircut.curly_mop(sc, p, length=env("LENGTH", 0.065), side=env("SIDE", 0.32),
                                            fringe_cut=env("FRINGE_CUT", 0.25), sweep=env("SWEEP", 0.35)),
-    grow_args=dict(coil_radius=env("COIL", 0.0095), coil_pitch=env("PITCH", 0.038), volume=env("VOLUME", 0.028)),
-    child_args=dict(spread=env("SPREAD", 0.006)))
+    grow_args=dict(coil_radius=env("COIL", 0.011), coil_pitch=env("PITCH", 0.055), volume=env("VOLUME", 0.028)),
+    child_args=dict(spread=env("SPREAD", 0.006)),
+    ribbon=dict(width=env("RIBBON", 0.016), thickness=env("THICK", 0.0015), taper=env("TAPER", 0.5),
+                frizz=env("RFRIZZ", 0.0005))
+    if env("RIBBON", 0.016) > 0 else None)
 print("HAIR " + json.dumps(info))
 
 lm = accessories.face_landmarks(base_verts)

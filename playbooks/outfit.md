@@ -240,3 +240,16 @@ fractions of R+G+B, ours against the reference. Reference 0.428 / 0.328 / 0.245.
 | Skin too cool under studio lights (0.383 red, 0.288 blue) | Tone (1.0, 0.93, 0.70) gave 0.403 / 0.329 / 0.269 |
 | Blue eye reads dark teal | `lightblue` eye material |
 | Swept lock hangs like a stick (sweep 0.6) | sweep 0.35 |
+
+## Flat ribbon curls (run 012, steps 11 to 14)
+
+`haircut.curls(..., ribbon=dict(width, thickness, taper))`: each lock is a flat band that
+curls, instead of a round spring. Chosen: 220 guides, width 0.016, coil radius 0.011, pitch
+0.055, thickness 0.0015, taper 0.5.
+
+| Symptom | Fix |
+|---|---|
+| Thin flat noodles | Band width was laid along the coil axis, which mostly runs along the strand. Use the axis direction minus its part along the coiling strand |
+| Wood-shaving look, very crisp | Acceptable; closest to the reference (12a) |
+| Mush, curls lost (thickness 0.003, frizz 0.0012, tips widening) | Keep thickness under 0.002 and frizz under 0.0008 |
+| Fewer guides lose the swept lock over the eye | Check the eye cover after changing guide count |
