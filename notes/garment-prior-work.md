@@ -75,3 +75,26 @@ the generator our character's measurements, so the pattern is drafted and placed
 Next: measure our character from its mesh into the library's body-measurement file
 (about 27 values: height, bust, waist, hips, shoulder width and slope, arm length, arm
 pose angle, wrist, neck width and others), then draft and sew again without the lift.
+
+## Drafting for our own character (13 Nov 2026)
+
+`tools/measure_body.py` measures a character from its mesh and writes the library's
+body file. Measured: height, neck-to-shoulder point, shoulder width and slope, arm pose
+angle and length, chest, waist and hip girths. The other values are scaled from the
+library's average male by height and are marked as such in the file.
+
+For the pilot: 174.4 cm tall; shoulders 41.4 cm wide (library average 38.5) with a 16.9
+degree slope (library 22.5); arms 46.6 degrees below horizontal; chest 92, waist 77, hips 93.
+
+| Attempt | Result |
+|---|---|
+| First measuring rules | Wrong: read the top of the head as the neck point (head 2.7 cm long); the generator refused the pattern |
+| Corrected rules, pattern drafted for our body, 2 cm start lift | Sleeves now enclose the arms, but the body slid to the waist: the shoulder seam closes exactly on the shoulder surface and is forced through |
+| Same pattern, 4.5 cm start lift | Body stays on the shoulders with collar and lapels; sleeves are on the arms but bunch up above the elbows; one seam still 14 cm open |
+
+What this establishes: drafting for our measurements is what puts sleeves on the arms;
+a small starting lift is what lets shoulder seams close. Both are needed.
+
+Still open: sleeves gather toward the shoulder during sewing instead of running to the
+wrist, and a seam stays open. Likely causes to test: all seams closing at once with no
+gravity, so nothing holds the cuff at the wrist; and the cuff panels' own seams.

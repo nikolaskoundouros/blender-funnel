@@ -27,7 +27,9 @@ cloth.make_collider(solid_body)
 PATTERN = sys.argv[3] if len(sys.argv) > 3 else "shirt_mean_specification.json"
 TAG = sys.argv[4] if len(sys.argv) > 4 else FABRIC
 pattern, _ = patterns.load(os.path.join(human.ASSETS, "patterns", PATTERN))
-scale = person["funnel_height_m"] / 1.7199
+# Patterns drafted for the library's own body are scaled by height; patterns drafted from
+# our character's measurements (tools/measure_body.py) are already the right size.
+scale = float(sys.argv[5]) if len(sys.argv) > 5 else person["funnel_height_m"] / 1.7199
 # Second attempt (gentle sewing) still ended at the hips. Cause: the pattern's shoulder
 # seam sits at 1.43 m, below the top of this character's shoulders (the pattern was drafted
 # for a slimmer, more sloped body). The seam could only close by cutting through the
