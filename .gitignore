@@ -1,3 +1,5 @@
 __pycache__/
 *.blend1
 experiments/out/
+assets/
+runs/002-characters/*.blend

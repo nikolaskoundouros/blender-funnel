@@ -17,7 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
 import recipes  # noqa: E402
-from recipes import camera, color, lighting, render, stage, world  # noqa: E402
+from recipes import camera, color, human, lighting, render, rig, stage, world  # noqa: E402
 
 CAM = (6.0, -6.0, 3.0)
 
@@ -89,11 +89,41 @@ def check_render():
         assert os.path.getsize(path) > 0
 
 
+def check_human_clothed():
+    scene = stage.new_scene()
+    body = human.build_human(scene, name="A", outfit=("female_casualsuit01", "shoes01"),
+                             hair="long01", gender=0.0)
+    assert body.type == "MESH" and len(body.children) == 7
+    assert 1.4 < body["funnel_height_m"] < 1.8
+    # skin under the outfit is removed
+    assert len(body.data.polygons) < 13378
+
+
+def check_human_posed():
+    scene = stage.new_scene()
+    root = human.build_human(scene, name="B", outfit=("male_worksuit01", "shoes04"),
+                             hair="short02", gender=1.0, pose="wave")
+    assert root.type == "ARMATURE" and len(root.data.bones) == 163
+    assert all(c.modifiers and c.modifiers[0].type == "ARMATURE" for c in root.children)
+
+
+def check_human_mixamo_rig():
+    scene = stage.new_scene()
+    root = human.build_human(scene, name="C", outfit=(), hair=None, pose=[], rig_name="mixamo")
+    assert "mixamorig:Hips" in root.data.bones and len(root.data.bones) == 52
+
+
+HUMAN_CHECKS = [check_human_clothed, check_human_posed, check_human_mixamo_rig]
+HAVE_ASSETS = os.path.exists(os.path.join(human.DATA, "3dobjs", "base.obj"))
+
 CHECKS = [check_principled, check_backdrop, check_three_point, check_solid_world,
           check_sky_world, check_set_view, check_camera_dof, check_render]
 
 report = {"blender": bpy.app.version_string, "recipes_tested_with": recipes.TESTED_WITH, "checks": {}}
-for fn in CHECKS:
+for fn in HUMAN_CHECKS:
+    if not HAVE_ASSETS:
+        report["checks"][fn.__name__] = "skipped: run tools/fetch_assets.sh first"
+for fn in CHECKS + (HUMAN_CHECKS if HAVE_ASSETS else []):
     try:
         fn()
         report["checks"][fn.__name__] = "pass"
@@ -103,4 +133,4 @@ for fn in CHECKS:
 with open(os.path.join(HERE, "last_check.json"), "w") as fh:
     json.dump(report, fh, indent=2)
 print("CHECK " + json.dumps(report, indent=2))
-sys.exit(0 if all(v == "pass" for v in report["checks"].values()) else 1)
+sys.exit(1 if any(v.startswith("FAIL") for v in report["checks"].values()) else 0)

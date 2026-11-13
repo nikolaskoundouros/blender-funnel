@@ -1,0 +1,66 @@
+{
+  "H1": {
+    "claim": "Clothes fitting: weighted base vertices + offset x scale, offsets in file axis order",
+    "values": {
+      "items_tested": 30,
+      "items_where_file_order_fits_best": 29,
+      "items_modelled_on_unmorphed_base_residual_mm": {
+        "fedora01.mhclo": {
+          "x y z (as written)": 0.01,
+          "x z y": 19.19,
+          "x -z y": 19.18,
+          "x z -y": 19.18,
+          "x y -z": 22.87
+        },
+        "fedora_cocked.mhclo": {
+          "x y z (as written)": 0.01,
+          "x z y": 19.67,
+          "x -z y": 19.86,
+          "x z -y": 19.85,
+          "x y -z": 23.86
+        },
+        "short04.mhclo": {
+          "x y z (as written)": 0.01,
+          "x z y": 4.75,
+          "x -z y": 7.14,
+          "x z -y": 7.14,
+          "x y -z": 9.04
+        }
+      },
+      "exceptions": [
+        {
+          "short03.mhclo": {
+            "x y z (as written)": 8.2,
+            "x z y": 9.0,
+            "x -z y": 11.9,
+            "x z -y": 8.0,
+            "x y -z": 10.5
+          }
+        }
+      ]
+    },
+    "confirmed": true
+  },
+  "H2": {
+    "claim": "Height responds sensibly to the gender, height and age sliders",
+    "values_m": {
+      "default": 1.659,
+      "male": 1.729,
+      "female": 1.591,
+      "tall": 2.368,
+      "short": 1.3,
+      "child": 1.312
+    },
+    "targets_used_by_default": 52,
+    "confirmed": true
+  },
+  "H3": {
+    "claim": "An outfit lists covered body vertices, so skin under it can be removed",
+    "values": {
+      "covered_vertices": 5372,
+      "body_faces": 13378,
+      "faces_removed": 2688
+    },
+    "confirmed": true
+  }
+}

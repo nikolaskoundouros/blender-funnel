@@ -1,0 +1,25 @@
+{
+  "blender": "5.3.0",
+  "image": {
+    "p5": 0.425,
+    "median": 0.726,
+    "p95": 0.82,
+    "spread_p95_minus_p5": 0.395,
+    "clipped_fraction": 0.0,
+    "near_black_fraction": 0.0
+  },
+  "people": {
+    "Ana_rig": {
+      "height_m": 1.553,
+      "parts": 8
+    },
+    "Ben_rig": {
+      "height_m": 1.938,
+      "parts": 8
+    },
+    "Chen_rig": {
+      "height_m": 1.425,
+      "parts": 8
+    }
+  }
+}

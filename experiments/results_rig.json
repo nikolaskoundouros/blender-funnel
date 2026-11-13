@@ -1,0 +1,89 @@
+{
+  "R1": {
+    "claim": "Every body vertex is weighted in all three rigs; default and game_engine sum to 1",
+    "values_as_shipped": {
+      "default": {
+        "bones": 163,
+        "unweighted_body_vertices": 0,
+        "weight_sum_min": 1.0,
+        "weight_sum_max": 1.0,
+        "most_bones_on_one_vertex": 8
+      },
+      "mixamo": {
+        "bones": 52,
+        "unweighted_body_vertices": 0,
+        "weight_sum_min": 0.2,
+        "weight_sum_max": 1.498,
+        "most_bones_on_one_vertex": 5
+      },
+      "game_engine": {
+        "bones": 53,
+        "unweighted_body_vertices": 0,
+        "weight_sum_min": 1.0,
+        "weight_sum_max": 1.0,
+        "most_bones_on_one_vertex": 6
+      }
+    },
+    "note": "mixamo weights are complete but not normalised in the file; the loader normalises them",
+    "confirmed": true
+  },
+  "R2": {
+    "claim": "The skeleton stays symmetric and inside the body on different body shapes",
+    "values": {
+      "default": {
+        "worst_left_right_length_difference": 0.0,
+        "highest_bone_point_m": 1.663,
+        "body_height_m": 1.659
+      },
+      "heavy tall male": {
+        "worst_left_right_length_difference": 0.0,
+        "highest_bone_point_m": 2.298,
+        "body_height_m": 2.293
+      },
+      "child": {
+        "worst_left_right_length_difference": 0.0,
+        "highest_bone_point_m": 1.301,
+        "body_height_m": 1.312
+      },
+      "slim short female": {
+        "worst_left_right_length_difference": 0.0,
+        "highest_bone_point_m": 1.306,
+        "body_height_m": 1.305
+      }
+    },
+    "confirmed": true
+  },
+  "R3": {
+    "claim": "Posing changes body volume by less than 3 percent (no badly collapsing joints)",
+    "values_posed_over_rest": {
+      "relaxed": 0.9979,
+      "wave": 0.9983,
+      "akimbo": 0.997
+    },
+    "confirmed": true
+  },
+  "R4": {
+    "claim": "Posing does not push clothes into visible skin (under 2 percent of vertices, 5 mm)",
+    "values_fraction_inside_visible_skin": {
+      "female_casualsuit01": {
+        "modelling pose": 0.0033,
+        "relaxed": 0.0048,
+        "wave": 0.0043,
+        "akimbo": 0.0033
+      },
+      "male_worksuit01": {
+        "modelling pose": 0.0,
+        "relaxed": 0.0015,
+        "wave": 0.0009,
+        "akimbo": 0.0005
+      },
+      "female_elegantsuit01": {
+        "modelling pose": 0.0005,
+        "relaxed": 0.0005,
+        "wave": 0.0008,
+        "akimbo": 0.0016
+      }
+    },
+    "confirmed": true
+  }
+}
