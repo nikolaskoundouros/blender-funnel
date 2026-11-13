@@ -22,3 +22,4 @@ One row per outfit attempt, newest last. "Tries" counts simulate-and-look cycles
   simulation plus a render.
 - The same mistake happened twice (measuring against the holed body). It is now in the
   failure table and should be built into the recipe.
+| 012 curls | Orange curly mop on a boy (clip: My Mom Cracked The Dinosaur) | 5 steps | ~18 s build, 90 s render | Ringlets, colour, silhouette close; looser C-shaped curls and peach highlights still differ |

@@ -80,6 +80,31 @@ def short_back_and_sides(scalp, points, top_length=0.065, side_length=0.006, bac
     return density, length, comb, grey
 
 
+def curly_mop(scalp, points, length=0.11, fringe_cut=0.25, crown=(0.0, 0.13, 0.115)):
+    """Scalp map for a full head of curls: hair everywhere above a low hairline, falling
+    outward and down from the crown like a mop, with a fringe over the forehead.
+    `crown` is the parting centre relative to (centre x, front of face, eye height)."""
+    h = points[:, 2] - scalp.eye_z
+    back = points[:, 1] - scalp.lm["front_y"]
+    x = np.abs(points[:, 0])
+    forehead_line = 0.042 - 0.02 * np.clip(x / 0.07, 0.0, 1.0)   # low, so the fringe covers the forehead
+    w_face = _sigmoid(0.085 - back, 0.008)
+    w_side = _sigmoid(0.14 - back, 0.008) * (1.0 - w_face)
+    line = w_face * forehead_line + w_side * (-0.01) + (1.0 - w_face - w_side) * (-0.065)
+    ears = np.hypot(points[:, 1] - (scalp.lm["front_y"] + 0.105), points[:, 2] - (scalp.eye_z - 0.03))
+    density = _sigmoid(h - line, 0.004) * np.where(x > 0.055, _sigmoid(ears - 0.035, 0.004), 1.0)
+    # long on top, shorter low on the sides and back so the mop ends about the top of the
+    # ears (step 2 hung to the jaw)
+    length = np.full(len(points), length) * (0.45 + 0.55 * _sigmoid(h - 0.04, 0.015))
+    # the fringe stops at the brows (step 3 hung over one eye)
+    length *= 1.0 - fringe_cut * w_face * _sigmoid(0.10 - h, 0.01)
+    c = np.array([crown[0], scalp.lm["front_y"] + crown[1], scalp.eye_z + crown[2]])
+    comb = points - c
+    comb[:, 2] = np.minimum(comb[:, 2], 0.0) - 0.02          # out from the crown and down
+    comb /= np.maximum(np.linalg.norm(comb, axis=1, keepdims=True), 1e-9)
+    return density, length, comb, np.zeros(len(points))
+
+
 def sample_roots(scalp, count, style, seed=0, oversample=4):
     """Root points on the scalp, distributed by the style's density."""
     rng = np.random.default_rng(seed)
@@ -221,5 +246,110 @@ def haircut(scene, base_verts, style=short_back_and_sides, guides=400, children=
     kids = interpolate(scalp, g, c_roots, clump=clump, frizz=frizz, seed=seed + 2)
     grey = style(scalp, c_roots)[3]
     obj = build(scene, "Haircut", kids, grey, mat or material(), radius=radius, parent=parent)
+    return obj, {"guides": len(g), "children": len(kids), "guide_seconds": round(t_guides, 1),
+                 "total_seconds": round(time.time() - started, 1)}
+
+
+def grow_ringlets(scalp, roots, style, steps=48, volume=0.028, rise=0.35, coil_radius=0.007,
+                  coil_pitch=0.022, coil_start=0.12, droop=0.5, seed=0):
+    """Guide strands for curly hair, after Blender's bundled "Curl Hair Curves" node group
+    (Curl Start, Radius, Frequency, Random Offset per curve): each guide is the axis of one
+    ringlet that leaves the scalp, stands off it by up to `volume` metres, then coils round
+    that path with radius `coil_radius`, one turn per `coil_pitch` of length. Children that
+    copy one guide (see `interpolate_ringlets`) curl together, so each guide reads as a lock."""
+    rng = np.random.default_rng(seed)
+    _, length, _, _ = style(scalp, roots)
+    n = len(roots)
+    on, nrm = scalp.nearest(roots)
+    axis = np.zeros((n, steps, 3))
+    axis[:, 0] = roots
+    cur = roots.copy()
+    seg = length / (steps - 1)
+    for k in range(1, steps):
+        t = k / (steps - 1)
+        _, _, comb, _ = style(scalp, cur)
+        q, qn = scalp.nearest(cur)
+        d = comb - qn * np.einsum("ij,ij->i", comb, qn)[:, None] * (1.0 - rise * (1 - t))
+        d += qn * rise * (1 - t) ** 2                            # leave the scalp steeply at first
+        d[:, 2] -= droop * t ** 2                                # gravity on the ends
+        d /= np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
+        nxt = cur + d * seg[:, None]
+        q, qn = scalp.nearest(nxt)
+        height = np.einsum("ij,ij->i", nxt - q, qn)
+        floor = volume * np.sin(np.pi * np.clip(t * 1.6, 0.0, 1.0) / 2) * (0.7 + 0.3 * rng.random(n) if k == 1 else 1.0)
+        lift = np.maximum(floor - height, 0.0)
+        cur = nxt + qn * lift[:, None]
+        axis[:, k] = cur
+    # coil round the axis: a frame that follows the path without twisting
+    tang = np.gradient(axis, axis=1)
+    tang /= np.maximum(np.linalg.norm(tang, axis=2, keepdims=True), 1e-9)
+    u = np.cross(tang[:, 0], nrm)
+    u /= np.maximum(np.linalg.norm(u, axis=1, keepdims=True), 1e-9)
+    us = np.zeros_like(axis)
+    for k in range(steps):
+        u = u - tang[:, k] * np.einsum("ij,ij->i", u, tang[:, k])[:, None]
+        u /= np.maximum(np.linalg.norm(u, axis=1, keepdims=True), 1e-9)
+        us[:, k] = u
+    vs = np.cross(tang, us)
+    s_along = np.linspace(0.0, 1.0, steps)[None, :] * length[:, None]
+    phase = rng.uniform(0, 2 * np.pi, n)[:, None]
+    hand = rng.choice([-1.0, 1.0], n)[:, None]
+    pitch = coil_pitch * rng.uniform(0.8, 1.25, n)[:, None]
+    ang = hand * 2 * np.pi * s_along / pitch + phase
+    t = np.linspace(0.0, 1.0, steps)[None, :]
+    ramp = np.clip((t - coil_start) / 0.15, 0.0, 1.0) * rng.uniform(0.8, 1.2, n)[:, None]
+    r = coil_radius * ramp
+    pts = axis + (np.cos(ang) * r)[..., None] * us + (np.sin(ang) * r)[..., None] * vs
+    return pts
+
+
+def interpolate_ringlets(scalp, guides, child_roots, spread=0.0035, tip_spread=0.006, frizz=0.0006,
+                         escape=0.015, seed=0):
+    """Children for curly hair: each copies only its nearest guide (blending several coiled
+    guides would cancel the coils out). The child's root offset is squeezed into a lock
+    `spread` wide along the strand, opening to `tip_spread` at the tip. A fraction `escape`
+    of strands get extra frizz, the flyaways seen round real curls."""
+    rng = np.random.default_rng(seed)
+    g_roots = guides[:, 0]
+    steps = guides.shape[1]
+    t = np.linspace(0.0, 1.0, steps)[None, :, None]
+    out = np.zeros((len(child_roots), steps, 3))
+    for lo in range(0, len(child_roots), 4096):
+        r = child_roots[lo:lo + 4096]
+        d = np.linalg.norm(r[:, None, :] - g_roots[None, :, :], axis=2)
+        own = np.argmin(d, axis=1)
+        g = guides[own]
+        off = r - g_roots[own]
+        dist = np.maximum(np.linalg.norm(off, axis=1, keepdims=True), 1e-9)
+        dirn = off / dist
+        rand = rng.normal(size=(len(r), 3)); rand /= np.linalg.norm(rand, axis=1, keepdims=True)
+        width = spread + (tip_spread - spread) * t ** 2
+        mag = np.sqrt(rng.random((len(r), 1)))[:, None, :]            # fill the lock evenly
+        lock = (dirn * 0.5 + rand * 0.5)[:, None, :] * width * mag
+        root_blend = np.clip(1.0 - t / 0.1, 0.0, 1.0)                  # start at the real root
+        strand = g + off[:, None, :] * root_blend + lock * (1.0 - root_blend)
+        fz = frizz * (1.0 + 2.0 * (rng.random((len(r), 1, 1)) < escape))   # 7x drew zig-zags
+        strand = strand + np.cumsum(rng.normal(size=strand.shape), axis=1) * fz * t / np.sqrt(steps)
+        out[lo:lo + 4096] = strand
+    flat = out.reshape(-1, 3)
+    q, n = scalp.nearest(flat)
+    depth = np.einsum("ij,ij->i", flat - q, n)
+    under = depth < 0.0008
+    flat[under] = q[under] + n[under] * 0.0008
+    return flat.reshape(out.shape)
+
+
+def curls(scene, base_verts, style=curly_mop, guides=320, children=50000, steps=48, mat=None, parent=None,
+          radius=0.00007, seed=0, grow_args=None, child_args=None):
+    """A head of curls in one call. Returns (object, timings)."""
+    import time
+    started = time.time()
+    scalp = Scalp(base_verts)
+    g_roots, _ = sample_roots(scalp, guides, style, seed=seed)
+    g = grow_ringlets(scalp, g_roots, style, steps=steps, seed=seed, **(grow_args or {}))
+    t_guides = time.time() - started
+    c_roots, _ = sample_roots(scalp, children, style, seed=seed + 1)
+    kids = interpolate_ringlets(scalp, g, c_roots, seed=seed + 2, **(child_args or {}))
+    obj = build(scene, "Curls", kids, np.zeros(len(kids)), mat or material(), radius=radius, parent=parent)
     return obj, {"guides": len(g), "children": len(kids), "guide_seconds": round(t_guides, 1),
                  "total_seconds": round(time.time() - started, 1)}

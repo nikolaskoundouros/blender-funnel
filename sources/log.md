@@ -76,6 +76,13 @@ quality, not copied into anything we ship.
 |---|---|---|---|
 | "Create Hair / Fur in Blender 4.2 using Particle System" (FilmTush, 52 s), file supplied by the owner | D | Blender 4.2 | Step-by-step legacy particle-hair workflow with settings; transcript by faster-whisper base.en. See `notes/tutorial-hair-particles.md` |
 
+## Pass 7: curly hair (13 Nov 2026)
+
+| Source | Trust | Targets | What it gave |
+|---|---|---|---|
+| Blender 5.3.0 `procedural_hair_node_assets.blend`: inputs of Curl, Clump, Frizz Hair Curves and Hair Curves Noise, read on the installed program | A | 5.3.0 | Curl design: start along the strand, radius, frequency, random offset per curve, and a guide map so strands of one clump curl together. Re-implemented in numpy (`haircut.grow_ringlets`) |
+| "My Mom Cracked The Dinosaur" (87 s vertical short), file supplied by the owner | target | n/a | Reference for the orange curly hair; frames kept out of git |
+
 ## Could not be used
 
 | Source | Why |

@@ -1,0 +1,75 @@
+"""Run 012: orange curly hair (a mop of ringlets) on a boy, from guides plus children.
+
+Reference: the boy in "My Mom Cracked The Dinosaur" (owner-supplied clip, kept out of git).
+Usage: python runs/012-curls/curls.py [width height samples]
+Environment: GUIDES, CHILDREN, COIL (radius m), PITCH (m per turn), VOLUME (m), LENGTH (m),
+SPREAD (lock width m), COLOR ("r,g,b" for direct colour) or MELANIN/REDNESS, OUT, VIEWS.
+"""
+import json
+import os
+import sys
+import time
+
+import bpy
+import numpy as np
+from PIL import Image
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))
+from recipes import accessories, camera, color, garments, haircut, human, materials, render, stage, world  # noqa: E402
+
+W, H, SAMPLES = (int(a) for a in sys.argv[1:4]) if len(sys.argv) > 3 else (360, 360, 32)
+SLIDERS = dict(gender=1.0, age=0.22, muscle=0.5, weight=0.45, height=0.45, caucasian=1, african=0, asian=0)
+env = lambda k, d: type(d)(os.environ.get(k, d))
+
+scene = stage.new_scene()
+base_verts = human.morphed_base(**SLIDERS)
+boy = human.build_human(scene, name="Boy", skin="young_caucasian_male", hair=None, eyes="green",
+                        outfit=(garments.top(name="tee", sleeve=0.3, collar=1.0, hem=0.0, ease=0.006,
+                                             material=materials.fabric((0.72, 0.70, 0.64), on="garment")),),
+                        **SLIDERS)
+materials.soften_skin(boy.data.materials[0])
+
+
+def curl_material():
+    mat = haircut.material("Curls", melanin=env("MELANIN", 0.25), white=0.0, redness=env("REDNESS", 1.0),
+                           roughness=env("ROUGH", 0.35))
+    rgb = os.environ.get("COLOR", "0.8,0.12,0.05")   # coral; melanin mode came out golden
+    if rgb:
+        hair = next(n for n in mat.node_tree.nodes if n.type == "BSDF_HAIR_PRINCIPLED")
+        hair.parametrization = "COLOR"
+        hair.inputs["Color"].default_value = [float(c) for c in rgb.split(",")] + [1.0]
+    return mat
+
+
+obj, info = haircut.curls(
+    scene, base_verts, guides=env("GUIDES", 280), children=env("CHILDREN", 100000), mat=curl_material(), parent=boy,
+    style=lambda sc, p: haircut.curly_mop(sc, p, length=env("LENGTH", 0.08)),
+    grow_args=dict(coil_radius=env("COIL", 0.0095), coil_pitch=env("PITCH", 0.038), volume=env("VOLUME", 0.035)),
+    child_args=dict(spread=env("SPREAD", 0.006)))
+print("HAIR " + json.dumps(info))
+
+lm = accessories.face_landmarks(base_verts)
+world.sky_world(scene, sun_elevation_deg=40.0, sun_rotation_deg=220.0, strength=0.035)
+scene.cycles_curves.shape = "THICK"
+color.set_view(scene, "AgX", look="Medium High Contrast")
+render.cycles_cpu(scene, width=W, height=H, samples=SAMPLES)
+aim = stage.empty_at(scene, "Aim", (0.0, lm["front_y"] + 0.09, lm["eye_z"] + 0.03))
+views = {"front": (-0.12, -0.80, lm["eye_z"] + 0.02), "side": (0.80, -0.05, lm["eye_z"] + 0.10),
+         "back": (0.25, 0.95, lm["eye_z"] + 0.20)}
+names = os.environ.get("VIEWS", "front,side,back").split(",")
+tiles = []
+started = time.time()
+for label in names:
+    for o in [o for o in scene.objects if o.type == "CAMERA"]:
+        bpy.data.objects.remove(o, do_unlink=True)
+    camera.camera_at(scene, views[label], aim, lens=85.0)
+    path = os.path.join(HERE, f"curls_{label}.png")
+    render.render_to(scene, path)
+    tiles.append(Image.open(path).convert("RGB"))
+sheet = Image.new("RGB", (W * len(tiles), H))
+for i, t in enumerate(tiles):
+    sheet.paste(t, (W * i, 0))
+out = os.environ.get("OUT") or os.path.join(HERE, "curls.png")
+sheet.save(out)
+print("STATS " + json.dumps({"render_seconds": round(time.time() - started), **info}))

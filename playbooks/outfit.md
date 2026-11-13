@@ -201,3 +201,22 @@ white about 0.02 (0.6 came out ginger). Write new cuts as new style functions.
    itself, so it cannot happen a third time.
 3. When a step's settings change, change them here in the same commit.
 4. When a route becomes reliable, say so here and add a check for it to the test suite.
+
+## Curly hair (run 012, 5 steps, about 18 s to build, 90 s for three views)
+
+`haircut.curls(scene, base_verts, style=curly_mop, ...)`. Each guide is one ringlet; children copy
+only their own guide (blending several coiled guides cancels the coils). Design from Blender's
+bundled "Curl Hair Curves" node group (procedural_hair_node_assets.blend), re-implemented in numpy.
+
+Settings that matched the reference mop: length 0.08, coil radius 0.0095, pitch 0.038 per turn,
+volume 0.035, lock spread 0.006, 280 guides, 100,000 children, radius 0.00007.
+
+| Symptom | Fix |
+|---|---|
+| Golden blond with melanin 0.25, redness 1.0 | Direct colour mode, `Color` (0.8, 0.12, 0.05) for coral |
+| Direct colour (0.95, 0.32, 0.18) pale peach | Many strands brighten it: go darker and more saturated |
+| Covers the face, hangs to the shoulders | Length 0.11 too long; shorten low sides (length x 0.45 below the temples) |
+| Thin telephone-cord coils | Coil radius 0.007 to 0.0095, pitch 0.022 to 0.038, lock spread 0.006 |
+| Zig-zag strays | Flyaway frizz 7x too strong; 3x on 1.5 percent of strands |
+| Bare parting at the front | Crown point further back (0.13 behind the face), hairline lower (0.042 above the eyes) |
+| Fringe over one eye vs fringe too high | `fringe_cut` 0.25 (0.45 showed the hairline) |
