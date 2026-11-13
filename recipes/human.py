@@ -35,6 +35,8 @@ BODY_VERTS = 13380  # mesh_metadata/basemesh_vertex_groups.json: "body": [[0, 13
 SCALE = 0.1         # decimetres to metres
 
 
+BINDINGS = {}  # filled by build_human for the most recently built character
+
 # ------------------------------------------------------------------ file readers
 
 def read_obj(path):
@@ -314,7 +316,7 @@ def add_item(scene, base_verts, kind, name, material_path=None, parent=None):
 def build_human(scene, name="Human", skin="young_caucasian_female", outfit=(), hair=None,
                 eyes="brown", eyebrows="eyebrow001", eyelashes="eyelashes01", teeth=True,
                 location=(0.0, 0.0, 0.0), facing_deg=0.0, pose=None, rig_name="default",
-                **sliders):
+                collider=False, **sliders):
     """A complete standing character: body, skin, face details, hair and outfit.
 
     outfit: names from assets/system/clothes, e.g. ("female_casualsuit01", "shoes01").
@@ -322,6 +324,9 @@ def build_human(scene, name="Human", skin="young_caucasian_female", outfit=(), h
     pose steps (see rig.apply_pose), adds a skeleton and poses the character.
     rig_name: "default" (163 bones, with face and fingers), "game_engine" (53) or
     "mixamo" (52, Mixamo bone names). Named poses in rig.POSES are for "default".
+    collider: also make "<name>_collider", a complete copy of the body that follows the
+    skeleton but is invisible in renders. Cloth needs it: the visible body has holes
+    where skin under garments was removed, and cloth falls straight through them.
     facing_deg: turn about the vertical axis; 0 faces the -Y direction.
     sliders: see macro_targets(). Returns the root object (the skeleton if posed, else the
     body); everything else is parented to it.
@@ -361,6 +366,19 @@ def build_human(scene, name="Human", skin="young_caucasian_female", outfit=(), h
         obj.name = f"{name}_{item_name}"
         fitted.append((obj, item))
 
+    if collider:
+        whole = [i for i, f in enumerate(faces) if all(v < BODY_VERTS for v in f)]
+        shape = _mesh_object(scene, f"{name}_collider", base_verts[:BODY_VERTS],
+                             [faces[i] for i in whole], uvs, [face_uvs[i] for i in whole])
+        shape.parent = body
+        for flag in ("visible_camera", "visible_diffuse", "visible_glossy",
+                     "visible_transmission", "visible_volume_scatter", "visible_shadow"):
+            setattr(shape, flag, False)
+        every = np.arange(BODY_VERTS)
+        fitted.append((shape, {"tri": np.stack([every, every, every], axis=1),
+                               "weight": np.tile(np.array([1.0, 0.0, 0.0]), (BODY_VERTS, 1)),
+                               "delete": set()}))
+
     if generated:
         from . import garments  # imported here: garments.py imports this module
         for garment in generated:
@@ -374,5 +392,8 @@ def build_human(scene, name="Human", skin="young_caucasian_female", outfit=(), h
         rig.apply_pose(root, pose)
     root.location = location
     root.rotation_euler = (0.0, 0.0, math.radians(facing_deg))
+    # Kept for later steps such as cloth pinning: {object name: binding to the base mesh}.
+    BINDINGS.clear()
+    BINDINGS.update({obj.name: item for obj, item in fitted})
     root["funnel_height_m"] = float(base_verts[:BODY_VERTS, 1].max() * SCALE)
     return root

@@ -170,8 +170,11 @@ def _arm(side, upper, fore):
 
 # With the character facing -Y: +X is its left, -Y is forward, +Z is up.
 _DOWN = ((0.20, 0.0, -1.0), (0.10, -0.20, -1.0))          # hanging, elbow slightly bent
+_FORWARD = ((0.22, -0.55, -1.0), (-0.30, -1.0, 0.05))     # elbows bent, hands together in front
 POSES = {
     "relaxed": _arm("L", *_DOWN) + _arm("R", *_DOWN),
+    # Seated-pilot arms: hands forward as if holding a control stick.
+    "stick": _arm("L", *_FORWARD) + _arm("R", *_FORWARD),
     # Left hand raised in greeting, right arm hanging, head turned a little.
     "wave": _arm("R", *_DOWN) + _arm("L", (1.0, -0.1, 0.15), (0.25, -0.15, 1.0))
             + [("turn", "head", "Z", 10)],

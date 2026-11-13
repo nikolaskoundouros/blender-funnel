@@ -210,6 +210,17 @@ def _cut(garment):
     return faces, np.array(tri, dtype=int), np.array(weight), sources
 
 
+def coordinate(binding, name):
+    """A body coordinate ("h", "arm", "leg") at each vertex of a built garment."""
+    values = _body_coordinates()[name]
+    return (values[binding["tri"]] * binding["weight"]).sum(axis=1)
+
+
+def part(binding):
+    """Body part name at each vertex of a built garment."""
+    return _body_coordinates()["part"][binding["tri"][:, 0]]
+
+
 def _vertex_normals(verts, faces):
     normals = np.zeros_like(verts)
     for f in faces:

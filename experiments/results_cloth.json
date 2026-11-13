@@ -1,0 +1,30 @@
+{
+  "blender": "5.3.0",
+  "C1": {
+    "claim": "Cloth falls, is deflected by a collision object, and pinned vertices stay put",
+    "values": {
+      "pinned_corner_moved_m": 0.0,
+      "lowest_point_dropped_m": 1.016,
+      "vertices_inside_ball": 0,
+      "closest_approach_to_ball_surface_mm": 23.7
+    },
+    "confirmed": true
+  },
+  "C2": {
+    "claim": "Loose edges act as sewing springs and close the gap between two panels",
+    "values": {
+      "sewing_edges": 9,
+      "gap_before_m": 0.2,
+      "gap_after_m": 0.0
+    },
+    "confirmed": true
+  },
+  "C3": {
+    "claim": "A shrinking factor of -0.1 makes a 1 m sheet about 10 percent larger each way",
+    "values_extent_m2": {
+      "0.0": 1.0,
+      "-0.1": 1.21
+    },
+    "confirmed": true
+  }
+}

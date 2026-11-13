@@ -1,0 +1,17 @@
+{
+  "blender": "5.3.0",
+  "size": [
+    432,
+    540
+  ],
+  "samples": 48,
+  "render_seconds": 22,
+  "drape": {
+    "frames": 45,
+    "simulation_seconds": 38,
+    "fold_measure_degrees_before": 4.08,
+    "fold_measure_degrees_after": 10.31,
+    "largest_vertex_move_m": 0.103,
+    "fraction_inside_skin_3mm": 0.0006
+  }
+}
