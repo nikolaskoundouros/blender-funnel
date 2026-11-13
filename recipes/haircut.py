@@ -52,8 +52,8 @@ class Scalp:
         return out_p, out_n
 
 
-def short_back_and_sides(scalp, points, top_length=0.065, side_length=0.012, back_length=0.014,
-                         hairline=0.058, nape=-0.065, grey_top=0.3, grey_sides=0.55):
+def short_back_and_sides(scalp, points, top_length=0.065, side_length=0.006, back_length=0.008,
+                         hairline=0.058, nape=-0.06, grey_top=0.55, grey_sides=0.8):
     """Scalp map for a short, combed-back cut: longer on top, clipped short at the sides and
     back. Returns density, length, combing direction and greyness per point."""
     rel = points - scalp.centre
@@ -93,7 +93,8 @@ def sample_roots(scalp, count, style, seed=0, oversample=4):
     return pts, nrm
 
 
-def grow_guides(scalp, roots, style, steps=10, lift=(0.0015, 0.007), volume=0.010):
+def grow_guides(scalp, roots, style, steps=10, lift=(0.0015, 0.007), volume=0.010, wave=0.006,
+                wavelength=0.035, seed=0):
     """Guide strands that follow the combing direction over the scalp, lying on a shell that
     rises from `lift[0]` above the scalp at the root to `lift[1]` at the tip."""
     _, length, _, _ = style(scalp, roots)
@@ -101,10 +102,17 @@ def grow_guides(scalp, roots, style, steps=10, lift=(0.0015, 0.007), volume=0.01
     pts[:, 0] = roots
     seg = length / (steps - 1)
     cur = roots.copy()
+    phase = np.random.default_rng(seed).uniform(0.0, 2 * np.pi, len(roots))
     for k in range(1, steps):
         _, _, comb, _ = style(scalp, cur)
         on, n = scalp.nearest(cur)
         d = comb - n * np.einsum("ij,ij->i", comb, n)[:, None]           # along the surface
+        d /= np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
+        # sideways wave along longer strands, so the top breaks up into locks
+        side = np.cross(n, d)
+        travelled = seg * k
+        sway = wave * np.clip((length - 0.02) / 0.05, 0.0, 1.0) * np.cos(2 * np.pi * travelled / wavelength + phase)
+        d = d + side * (sway / np.maximum(seg, 1e-6))[:, None] * 0.25
         d /= np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
         nxt = cur + d * seg[:, None]
         q, qn = scalp.nearest(nxt)
@@ -112,7 +120,9 @@ def grow_guides(scalp, roots, style, steps=10, lift=(0.0015, 0.007), volume=0.01
         # longer strands stand further off the scalp (a quiff of volume on top); the short
         # sides stay close. (A flat shell made the hair look painted on.)
         extra = volume * np.clip((length - 0.02) / 0.05, 0.0, 1.0) * np.sin(np.pi * min(t * 1.2, 1.0))
-        cur = q + qn * (lift[0] + (lift[1] - lift[0]) * t + extra)[:, None] if np.ndim(extra) else q + qn * (lift[0] + (lift[1] - lift[0]) * t)
+        # short strands lie close to the skin (clipped sides); long ones rise to lift[1]
+        rise = (lift[1] - lift[0]) * np.clip(length / 0.05, 0.15, 1.0)
+        cur = q + qn * (lift[0] + rise * t + extra)[:, None]
         pts[:, k] = cur
     return pts
 
@@ -205,7 +215,7 @@ def haircut(scene, base_verts, style=short_back_and_sides, guides=400, children=
     started = time.time()
     scalp = Scalp(base_verts)
     g_roots, _ = sample_roots(scalp, guides, style, seed=seed)
-    g = grow_guides(scalp, g_roots, style, steps=steps)
+    g = grow_guides(scalp, g_roots, style, steps=steps, seed=seed)
     t_guides = time.time() - started
     c_roots, _ = sample_roots(scalp, children, style, seed=seed + 1)
     kids = interpolate(scalp, g, c_roots, clump=clump, frizz=frizz, seed=seed + 2)
