@@ -89,6 +89,14 @@ quality, not copied into anything we ship.
 |---|---|---|---|
 | KeenTools "FaceTracker for Blender" tutorial (4 min 31 s), on the owner's computer; analysed there by another session | D | Blender 4.2, FaceTracker 2024.2.3 | Facial mocap workflow and export format; see `notes/tutorial-facetracker.md` |
 
+## Tutorial video: pro T-shirt (13 Nov 2026)
+
+| Source | Trust | Targets | What it gave |
+|---|---|---|---|
+| "Noob vs PRO Realistic Clothes in Blender" (73 s short), file supplied by the owner | D | not shown | Box-modelled shirt, box collider, subdivision before cloth, self collision; see `notes/tutorial-pro-tshirt.md` |
+
+| "Noob vs Pro Artist 3D Pants Design in Blender" (96 s short), file supplied by the owner | D | not shown | Two sewn flat panels with a crotch slit, no gravity, shrink; see `notes/tutorial-pro-pants.md` |
+
 ## Could not be used
 
 | Source | Why |

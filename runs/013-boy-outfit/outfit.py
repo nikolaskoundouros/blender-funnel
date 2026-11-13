@@ -72,7 +72,7 @@ if TEE_MODE == "asset":
 else:
     outfit, edits = (pants, stripe, tee, "shoes05"), None
 boy = human.build_human(scene, name="Boy", skin="young_caucasian_male", hair=None, eyes="green",
-                        outfit=outfit, pose=pose, collider=bool(env("DRAPE", 1)) and TEE_MODE != "asset",
+                        outfit=outfit, pose=pose, collider=(bool(env("DRAPE", 1)) and TEE_MODE != "asset") or bool(env("SETTLE", 1)),
                         sculpt=edits, **S)
 if TEE_MODE == "asset":
     import bmesh  # noqa: E402
@@ -199,7 +199,28 @@ if env("DRAPE", 1) and TEE_MODE != "asset":
     else:
         cloth.simulate(scene, total)
     sim_seconds = round(time.time() - t0)
-info = {**print_info, "sim_seconds": sim_seconds, "tee_points_pushed": pushed if (env("DRAPE", 1) and TEE_MODE != "asset") else 0}
+settle_info = {}
+if TEE_MODE == "asset" and env("SETTLE", 1):
+    # Pro-tutorial method (notes/tutorial-pro-tshirt.md): no pins, subdivision before the
+    # cloth so it simulates on a dense mesh, self collision 1.5 cm, let it settle on the
+    # body under gravity, keep a good frame.
+    from recipes import hair as _h  # noqa: E402
+    col_obj = next(o for o in boy.children_recursive if o.name == "Boy_collider")
+    cloth.make_collider(col_obj)
+    cloth.make_collider(next(o for o in boy.children_recursive if o.name == "Boy_pants"), thickness=0.004)
+    cloth.add_cloth(tee_obj, pin_weights=None, fabric="cotton", spare=0.0, resolution=env("SUBDIV", 2),
+                    quality=env("QUALITY", 5), self_distance=env("SELF_DIST", 0.015))
+    total = env("SETTLE_FRAMES", 54)
+    scene.frame_start, scene.frame_end = 1, total
+    for m in (m for o in scene.objects for m in o.modifiers if m.type == "CLOTH"):
+        m.point_cache.frame_start, m.point_cache.frame_end = 1, total
+    t0 = time.time(); hem = []
+    for f in range(1, total + 1):
+        scene.frame_set(f)
+        if f in (1, 10, 20, 30, 40, total):
+            hem.append((f, round(float(np.percentile(np.array(_h.evaluated_mesh(tee_obj)[0])[:, 2], 1)), 3)))
+    settle_info = {"settle_seconds": round(time.time() - t0), "hem_z_by_frame": hem}
+info = {**print_info, **settle_info, "sim_seconds": sim_seconds, "tee_points_pushed": pushed if (env("DRAPE", 1) and TEE_MODE != "asset") else 0}
 if env("HAIR", 1):
     _, hinfo = looks.orange_curls(scene, base_verts, armature=boy, children=env("CHILDREN", 150000))
     info.update(hinfo)

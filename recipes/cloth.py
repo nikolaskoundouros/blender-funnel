@@ -38,7 +38,7 @@ def make_collider(obj, thickness=0.006):
 
 
 def add_cloth(obj, pin_weights=None, fabric="cotton", spare=0.05, resolution=1, quality=10,
-              clearance=0.006, self_collision=True, sewing_force=12.0):
+              clearance=0.006, self_collision=True, sewing_force=12.0, self_distance=0.004):
     """Make a garment object simulate as cloth.
 
     pin_weights: one value per base vertex of the garment, 1 = fixed to the skeleton.
@@ -78,7 +78,7 @@ def add_cloth(obj, pin_weights=None, fabric="cotton", spare=0.05, resolution=1, 
     c.collision_quality = 4
     c.distance_min = clearance
     c.use_self_collision = self_collision
-    c.self_distance_min = 0.004
+    c.self_distance_min = self_distance
     return cloth
 
 
