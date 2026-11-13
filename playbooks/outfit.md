@@ -118,6 +118,14 @@ Worked example: `runs/010-head/head.py`.
 - Expression: `build_human(expression={"mouth-corner-puller": 0.9, ...})`; 34 units in
   `assets/mpfb_data/targets/expression/units/<ethnicity>/`.
 
+## Hair (run 011)
+
+`haircut.haircut(scene, base_verts, guides=400, children=60000)`: scalp map (density,
+length, combing direction, greyness) from position; guides grown along the scalp with
+volume on longer strands; children interpolated from the nearest guides, clumped and
+frizzed. About 4 s to build, 20 s to render two 400 px views. Melanin: dark about 0.9,
+white about 0.02 (0.6 came out ginger). Write new cuts as new style functions.
+
 ## Iterating on a shape (learned on the collar, run 009 steps 7 to 10)
 
 - Never replace the best version without a side-by-side against it and the reference.
@@ -169,6 +177,8 @@ Worked example: `runs/010-head/head.py`.
 | Moustache sticks out like a brush, skin shows through | Strands grow along the normal; too sparse | Comb hard sideways and down; dark base layer |
 | Dark blotches on the cheeks | Moustache base on the smoothed face dips under the skin | Lay it on the raw face (smooth=0) |
 | Bright white stitch lines on the hood | Thread colour derived from the base | Pass a thread colour close to the leather |
+| Hair grows over the face | Depth measured with the wrong sign in the hairline test | Fixed in `short_back_and_sides` |
+| Hair looks painted on | Strands lie on a flat shell | `volume` lifts longer strands off the scalp |
 
 ## Time per step on this machine (4 CPU cores, no graphics card)
 
