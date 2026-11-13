@@ -108,18 +108,18 @@ def _body_coordinates():
 
 
 def _garment(name, shell, field, ease, thickness, material, skin_margin=0.07, soften=0,
-             smooth_shell=0, snaps=()):
+             smooth_shell=0, snaps=(), cut=None, puff=0.0):
     covered = (set(np.nonzero(field[:human.BODY_VERTS] > skin_margin)[0].tolist())
                if skin_margin and field is not None else set())
     return {"name": name, "shell": shell, "field": field, "ease": ease, "thickness": thickness,
             "material": material, "delete": covered, "soften": soften,
-            "smooth_shell": smooth_shell, "snaps": list(snaps)}
+            "smooth_shell": smooth_shell, "snaps": list(snaps), "cut": cut, "puff": puff}
 
 
 # ------------------------------------------------------------------ catalogue
 
 def top(name="top", sleeve=0.55, hem=-0.10, collar=0.96, ease=0.008, thickness=0.0025,
-        material=None, soften=0):
+        material=None, soften=0, smooth_shell=0):
     """Shirt-like garment. sleeve: 0 sleeveless, 0.55 short, 1.95 long. hem: bottom edge
     relative to the hip joint (negative is lower). collar: 0.9 wide neck, 0.99 high."""
     c = _body_coordinates()
@@ -131,7 +131,8 @@ def top(name="top", sleeve=0.55, hem=-0.10, collar=0.96, ease=0.008, thickness=0
     field = np.where(limb, armhole - c["arm"], field)
     # soften: smoothing passes that melt the body's shape out of a thick outer garment
     return _garment(name, TIGHTS, field, ease, thickness,
-                    material or materials.fabric((0.85, 0.85, 0.82), on="garment"), soften=soften)
+                    material or materials.fabric((0.85, 0.85, 0.82), on="garment"), soften=soften,
+                    smooth_shell=smooth_shell)
 
 
 def baggy_ease(outer=0.032, inner=0.008, waist=0.012, ankle=0.016):
@@ -236,7 +237,7 @@ def _wrap(points, side_left):
 
 def leg_patch(name, s=(0.18, 0.85), theta=(-35.0, 50.0), side="both", ease=0.012,
               thickness=0.0022, material=None, smooth_shell=0, snaps=(), corner=0.012,
-              step=0.008):
+              step=0.008, cut=None, puff=0.0):
     """A flat piece lying on the leg: a patch pocket, a pocket flap, a reinforcement.
 
     Drawn as an exact rounded rectangle in flat leg coordinates and wrapped onto the leg,
@@ -247,6 +248,8 @@ def leg_patch(name, s=(0.18, 0.85), theta=(-35.0, 50.0), side="both", ease=0.012
     degrees (0 front, 90 outside). side: "L", "R" or "both". Give it the trousers' ease
     plus a few millimetres so it sits on top. snaps: list of (s, theta) for press-studs.
     corner: corner radius in metres. step: mesh spacing in metres.
+    cut: the trousers' leg shape (see trousers); pass the same one so the patch lies on them.
+    puff: how far the middle of the patch bulges out, in metres (a filled pocket).
     """
     from mathutils import geometry as geo
     outline = _rounded_rectangle(np.radians(theta[0]) * LEG_RADIUS, np.radians(theta[1]) * LEG_RADIUS,
@@ -276,14 +279,17 @@ def leg_patch(name, s=(0.18, 0.85), theta=(-35.0, 50.0), side="both", ease=0.012
         base += len(uv)
     spec = _garment(name, TIGHTS, None, ease, thickness,
                     material or materials.fabric((0.05, 0.06, 0.09), on="garment"),
-                    skin_margin=None, smooth_shell=smooth_shell, snaps=snaps)
+                    skin_margin=None, smooth_shell=smooth_shell, snaps=snaps, cut=cut, puff=puff)
     spec["explicit"] = {"faces": faces_all, "tri": np.concatenate(tri_all),
                         "weight": np.concatenate(w_all), "uv": np.concatenate(uv_all)}
     return spec
 
 
 def trousers(name="trousers", length=1.93, waist=0.20, ease=0.008, thickness=0.003,
-             material=None, smooth_shell=0):
+             material=None, smooth_shell=0, cut=None):
+    """cut: None for trousers that follow the leg; or a dict giving loose straight legs,
+    e.g. {"thigh": 0.115, "knee": 0.095, "ankle": 0.085, "folds": 0.006} (radii and fold
+    depth in metres)."""
     """length: 0.5 shorts, 1.0 knee, 1.93 ankle. waist: waistband height above the hip
     joint as a fraction of hip-to-neck."""
     c = _body_coordinates()
@@ -291,16 +297,18 @@ def trousers(name="trousers", length=1.93, waist=0.20, ease=0.008, thickness=0.0
     field = np.where(np.isin(c["part"], ("leg", "foot")), np.minimum(field, length - c["leg"]), field)
     field = np.where(np.isin(c["part"], ("arm", "hand")), -FAR, field)
     return _garment(name, TIGHTS, field, ease, thickness, material or materials.denim(),
-                    smooth_shell=smooth_shell)
+                    smooth_shell=smooth_shell, cut=cut)
 
 
-def boots(name="boots", top_at=1.55, ease=0.007, thickness=0.004, material=None):
+def boots(name="boots", top_at=1.55, ease=0.007, thickness=0.004, material=None,
+          smooth_shell=0, cut=None):
     """Soft boot or sock from the foot up to a point on the shin (1.0 knee, 2.0 ankle).
     No separate sole or heel."""
     c = _body_coordinates()
     field = np.where(np.isin(c["part"], ("leg", "foot")), c["leg"] - top_at, -FAR)
     return _garment(name, TIGHTS, field, ease, thickness,
-                    material or materials.plain("Boot leather", (0.06, 0.05, 0.05), 0.45))
+                    material or materials.plain("Boot leather", (0.06, 0.05, 0.05), 0.45),
+                    smooth_shell=smooth_shell, cut=cut)
 
 
 def skirt(name="skirt", length=0.55, ease=0.004, thickness=0.003, material=None):
@@ -458,16 +466,61 @@ def _split_panels(faces, tri, weight, sources, spec):
 _SURFACES = {}
 
 
-def shell_surface(base_verts, iterations):
+def _straight_legs(pos, base_verts, cut):
+    """Push each leg's cross-section out to a wide, nearly straight tube, as loose flight
+    trousers hang, and add soft folds. cut: dict with radii in metres at thigh, knee and
+    ankle, and fold amplitude. The legs are kept from crossing the body's centre plane."""
+    c = _body_coordinates()
+    bones = rig.read_rig("default")
+    vb = human.to_blender(base_verts)
+    joint = lambda name: np.array(rig._position(bones[name]["head"], vb))
+    out = pos.copy()
+    for sd, sign, mask in (("L", 1.0, c["left"]), ("R", -1.0, ~c["left"])):
+        hip, knee, ankle = joint(f"upperleg01.{sd}"), joint(f"lowerleg01.{sd}"), joint(f"foot.{sd}")
+        rows = np.nonzero(mask & (c["part"] == "leg"))[0]
+        s_v = c["leg"][rows]
+        upper = s_v <= 1.0
+        base = np.where(upper[:, None], hip, knee)
+        axis = np.where(upper[:, None], knee - hip, ankle - knee)
+        axis /= np.linalg.norm(axis, axis=1, keepdims=True)
+        rel = pos[rows] - base
+        along = (rel * axis).sum(axis=1)
+        radial = rel - along[:, None] * axis
+        r = np.linalg.norm(radial, axis=1)
+        d = radial / np.maximum(r, 1e-9)[:, None]
+        target = np.interp(s_v, [0.0, 0.15, 1.0, 1.9, 2.2],
+                           [cut["thigh"] * 0.9, cut["thigh"], cut["knee"], cut["ankle"], cut["ankle"]])
+        centre_x = (base + along[:, None] * axis)[:, 0]
+        toward_mid = (d[:, 0] * sign) < -0.05
+        limit = np.where(toward_mid, (np.abs(centre_x) - 0.012) / np.maximum(-d[:, 0] * sign, 0.05), 9.0)
+        target = np.minimum(target, np.maximum(limit, r))
+        width = 0.012
+        grown = r + width * np.log1p(np.exp((target - r) / width))          # smooth maximum
+        grown = r + (grown - r) * np.clip(s_v / 0.18, 0.0, 1.0)             # blend into the seat
+        theta = np.radians(c["theta"][rows])
+        x, y = theta * LEG_RADIUS, s_v * LEG_LENGTH
+        folds = (np.sin(2 * np.pi * (y / 0.15 + x * 0.35 / 0.15) + 0.7)
+                 + 0.7 * np.sin(2 * np.pi * (y / 0.11 - x * 0.5 / 0.11) + 2.1)
+                 + 0.5 * np.sin(2 * np.pi * (y / 0.19 + 0.3)))
+        weight = 0.35 + np.exp(-((s_v - 1.0) / 0.25) ** 2) + np.clip((s_v - 1.55) / 0.35, 0.0, 1.0)
+        grown = grown + cut.get("folds", 0.0) * weight * folds / 2.2
+        out[rows] = base + along[:, None] * axis + d * grown[:, None]
+    return out
+
+
+def shell_surface(base_verts, iterations, cut=None):
     """Positions and normals of the whole tights shell (Blender coordinates), optionally
     smoothed so muscle definition does not show through loose garments. Every garment
     cut from the shell with the same setting lies on the same surface, so pockets sit
     exactly on trousers. Taubin smoothing: alternating shrink and inflate steps keep the
     size from collapsing the way plain averaging would."""
-    key = (iterations, base_verts.shape, float(base_verts[::211].sum()))
+    key = (iterations, base_verts.shape, float(base_verts[::211].sum()),
+           tuple(sorted(cut.items())) if cut else None)
     if key in _SURFACES:
         return _SURFACES[key]
     pos = human.to_blender(base_verts).copy()
+    if cut:
+        pos = _straight_legs(pos, base_verts, cut)
     lo, hi = TIGHTS
     faces = [f for f in human.base_mesh()[2] if all(lo <= v <= hi for v in f)]
     edges = {(min(a, b), max(a, b)) for f in faces for a, b in zip(f, f[1:] + f[:1])}
@@ -600,10 +653,13 @@ def build(scene, base_verts, garment, name, parent=None):
     if tuple(garment["shell"]) == TIGHTS:
         # Garments on the tights shell take position and normal from the (optionally
         # smoothed) whole shell, so separate pieces line up exactly.
-        surf, normals = shell_surface(base_verts, garment.get("smooth_shell", 0))
+        surf, normals = shell_surface(base_verts, garment.get("smooth_shell", 0), garment.get("cut"))
         verts = (surf[tri] * weight[:, :, None]).sum(axis=1)
         n = (normals[tri] * weight[:, :, None]).sum(axis=1)
         n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
+        if garment.get("puff"):                   # a filled pocket bulges in the middle
+            inner, _ = edge_attributes(verts, faces)
+            ease = ease + garment["puff"] * np.clip(inner / 0.035, 0.0, 1.0)[:, None] ** 0.7
     else:
         verts = (all_bl[tri] * weight[:, :, None]).sum(axis=1)
         # Normals are taken before panels are moved apart, so both copies of a seam
@@ -667,7 +723,7 @@ def build_extras(scene, base_verts, garment, name, parent=None):
     s_v = (c["leg"][tri] * weight).sum(axis=1)
     t_v = (c["theta"][tri] * weight).sum(axis=1)
     left_v = c["left"][tri[:, 0]]
-    surf, normals = shell_surface(base_verts, garment.get("smooth_shell", 0))
+    surf, normals = shell_surface(base_verts, garment.get("smooth_shell", 0), garment.get("cut"))
     ease = garment["ease"]
     ease_v = (np.asarray(ease)[tri] * weight).sum(axis=1) if not np.isscalar(ease) else np.full(len(tri), ease)
     pos = (surf[tri] * weight[:, :, None]).sum(axis=1)
