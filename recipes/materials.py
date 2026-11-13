@@ -233,3 +233,66 @@ def glow(name="Glow", color=(1.0, 0.85, 0.65), strength=8.0):
     bsdf.inputs["Emission Color"].default_value = (*color, 1.0)
     bsdf.inputs["Emission Strength"].default_value = strength
     return mat
+
+
+def leather(name="Leather", color=(0.22, 0.12, 0.06), on="object", grain=0.0025, wear=0.5):
+    """Leather: pebbled grain from cell edges, broad uneven colour, shinier where worn.
+
+    grain: size of the pebbles in metres. wear: 0 new and even, 1 patchy and scuffed.
+    """
+    mat, nodes, links, bsdf = _new(name)
+    k = METRES_PER_UV if on == "garment" else 1.0
+    vec = _coords(nodes, links, uv=(on == "garment"))
+    cells = nodes.new("ShaderNodeTexVoronoi")
+    cells.feature = "DISTANCE_TO_EDGE"
+    cells.inputs["Scale"].default_value = k / grain
+    links.new(vec, cells.inputs["Vector"])
+    patches = nodes.new("ShaderNodeTexNoise")
+    patches.inputs["Scale"].default_value = 9.0 * k
+    patches.inputs["Detail"].default_value = 5.0
+    patches.inputs["Roughness"].default_value = 0.6
+    links.new(vec, patches.inputs["Vector"])
+    light = tuple(min(1.0, c * (1.0 + 1.6 * wear) + 0.03 * wear) for c in color)
+    links.new(_ramp(nodes, links, patches.outputs["Factor"], color, light, 0.35, 0.8), bsdf.inputs["Base Color"])
+    rough = nodes.new("ShaderNodeMapRange")
+    rough.inputs["To Min"].default_value = 0.62
+    rough.inputs["To Max"].default_value = 0.62 - 0.3 * wear
+    links.new(patches.outputs["Factor"], rough.inputs["Value"])
+    links.new(rough.outputs["Result"], bsdf.inputs["Roughness"])
+    creases = nodes.new("ShaderNodeTexNoise")
+    creases.inputs["Scale"].default_value = 40.0 * k
+    creases.inputs["Detail"].default_value = 3.0
+    links.new(vec, creases.inputs["Vector"])
+    both = nodes.new("ShaderNodeMath")
+    both.operation = "ADD"
+    ramp_cells = nodes.new("ShaderNodeMapRange")       # cell edges become shallow grooves
+    ramp_cells.inputs["From Max"].default_value = 0.12
+    links.new(cells.outputs["Distance"], ramp_cells.inputs["Value"])
+    links.new(ramp_cells.outputs["Result"], both.inputs[0])
+    links.new(creases.outputs["Factor"], both.inputs[1])
+    _bump(nodes, links, bsdf, both.outputs["Value"], strength=0.3, distance=0.0004)
+    return mat
+
+
+def hair_fibre(name="Hair", color=(0.08, 0.05, 0.03), roughness=0.45):
+    """Material for strand hair and fur (Principled Hair shader, set by colour)."""
+    mat, nodes, links, bsdf = _new(name)
+    out = next(n for n in nodes if n.type == "OUTPUT_MATERIAL")
+    hair = nodes.new("ShaderNodeBsdfHairPrincipled")
+    hair.parametrization = "COLOR"
+    hair.inputs["Color"].default_value = (*color, 1.0)
+    hair.inputs["Roughness"].default_value = roughness
+    hair.inputs["Radial Roughness"].default_value = min(1.0, roughness + 0.2)
+    links.new(hair.outputs["BSDF"], out.inputs["Surface"])
+    return mat
+
+
+def soften_skin(mat, amount=0.25, depth=0.006):
+    """Let light travel a little way into skin before coming out (subsurface scattering),
+    which removes the painted-plastic look. depth is in metres."""
+    bsdf = next(n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    bsdf.inputs["Subsurface Weight"].default_value = amount
+    bsdf.inputs["Subsurface Scale"].default_value = depth
+    bsdf.inputs["Subsurface Radius"].default_value = (1.0, 0.35, 0.2)
+    bsdf.inputs["Roughness"].default_value = 0.42
+    return mat

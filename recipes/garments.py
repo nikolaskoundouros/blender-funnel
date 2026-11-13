@@ -84,22 +84,23 @@ def _body_coordinates():
         coords[limb] = out
     z_hip, z_neck = joint("upperleg01.L")[2], joint("neck01")[2]
     zs = vb[SKIRT[0]:SKIRT[1] + 1, 2]
-    _COORDS = {"part": part, "h": (vb[:, 2] - z_hip) / (z_neck - z_hip),
+    _COORDS = {"part": part, "vb": vb, "eye": joint("eye.L"),
+               "h": (vb[:, 2] - z_hip) / (z_neck - z_hip),
                "arm": coords["arm"], "leg": coords["leg"],
                "k": (zs.max() - vb[:, 2]) / (zs.max() - zs.min())}
     return _COORDS
 
 
-def _garment(name, shell, field, ease, thickness, material, skin_margin=0.07):
+def _garment(name, shell, field, ease, thickness, material, skin_margin=0.07, soften=0):
     covered = set(np.nonzero(field[:human.BODY_VERTS] > skin_margin)[0].tolist()) if skin_margin else set()
     return {"name": name, "shell": shell, "field": field, "ease": ease, "thickness": thickness,
-            "material": material, "delete": covered}
+            "material": material, "delete": covered, "soften": soften}
 
 
 # ------------------------------------------------------------------ catalogue
 
 def top(name="top", sleeve=0.55, hem=-0.10, collar=0.96, ease=0.008, thickness=0.0025,
-        material=None):
+        material=None, soften=0):
     """Shirt-like garment. sleeve: 0 sleeveless, 0.55 short, 1.95 long. hem: bottom edge
     relative to the hip joint (negative is lower). collar: 0.9 wide neck, 0.99 high."""
     c = _body_coordinates()
@@ -109,8 +110,9 @@ def top(name="top", sleeve=0.55, hem=-0.10, collar=0.96, ease=0.008, thickness=0
     if sleeve <= 0:
         field = np.minimum(field, armhole - c["arm"])
     field = np.where(limb, armhole - c["arm"], field)
+    # soften: smoothing passes that melt the body's shape out of a thick outer garment
     return _garment(name, TIGHTS, field, ease, thickness,
-                    material or materials.fabric((0.85, 0.85, 0.82), on="garment"))
+                    material or materials.fabric((0.85, 0.85, 0.82), on="garment"), soften=soften)
 
 
 def trousers(name="trousers", length=1.93, waist=0.20, ease=0.008, thickness=0.003,
@@ -138,6 +140,32 @@ def skirt(name="skirt", length=0.55, ease=0.004, thickness=0.003, material=None)
     c = _body_coordinates()
     return _garment(name, SKIRT, length - c["k"], ease, thickness,
                     material or materials.fabric((0.25, 0.27, 0.32), on="garment"), skin_margin=None)
+
+
+def collar(name="collar", low=0.88, high=1.06, ease=0.022, thickness=0.02, material=None):
+    """A thick rolled collar lying on the shoulders round the neck: the base for fur trim."""
+    c = _body_coordinates()
+    field = np.minimum(c["h"] - low, high - c["h"])
+    field = np.where(np.isin(c["part"], ("torso", "neck")), field, -FAR)
+    return _garment(name, TIGHTS, field, ease, thickness,
+                    material or materials.plain("Collar base", (0.78, 0.72, 0.6), 0.9),
+                    skin_margin=None, soften=4)
+
+
+def helmet(name="helmet", ease=0.006, thickness=0.004, material=None):
+    """Close-fitting leather flying helmet: crown, back and sides of the head down past
+    the ears, leaving the face open. Cut from the head's own surface, then smoothed so
+    the ears do not show through."""
+    c = _body_coordinates()
+    vb, eye = c["vb"], c["eye"]
+    crown = (vb[:, 2] - (eye[2] + 0.024)) / 0.03
+    back = np.minimum((vb[:, 1] - (eye[1] + 0.085)) / 0.03, (vb[:, 2] - (eye[2] - 0.085)) / 0.03)
+    field = np.maximum(crown, back)
+    on_head = (c["part"] == "neck") & (vb[:, 2] > eye[2] - 0.12)
+    field = np.where(on_head, field, -FAR)
+    return _garment(name, (0, human.BODY_VERTS - 1), field, ease, thickness,
+                    material or materials.leather("Helmet leather", (0.10, 0.075, 0.055)),
+                    skin_margin=0.3, soften=12)
 
 
 # ------------------------------------------------------------------ building
@@ -220,6 +248,10 @@ def build(scene, base_verts, garment, name, parent=None):
     obj = bpy.data.objects.new(name, mesh)
     scene.collection.objects.link(obj)
     mesh.materials.append(garment["material"])
+    if garment.get("soften"):
+        relax = obj.modifiers.new("Soften", "SMOOTH")
+        relax.factor = 0.7
+        relax.iterations = garment["soften"]
     solid = obj.modifiers.new("Thickness", "SOLIDIFY")
     solid.thickness = garment["thickness"]
     solid.offset = 1.0  # grow outward, so the inner face stays clear of the skin

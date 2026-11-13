@@ -26,6 +26,23 @@ test image description in this file's last section.
 | Cockpit set | Modelled environment and props | From scratch | Not attempted |
 | Final polish | Grain, vignette, colour grade | Compositing node groups ship with Blender | Not attempted |
 
+## After run 005 (first attempt, all in Blender)
+
+Decision by the owner on 13 Nov 2026: everything is to be done in Blender, and the
+repository is meant to become a public toolkit for animators.
+
+| Element | Result of the first attempt |
+|---|---|
+| Fur | Close. Strand generator written; 70,000 strands render as wool |
+| Moustache | Close. Strands rooted and combed on the lip |
+| Goggles | Recognisable; strap is wrong |
+| Skin | Improved by subsurface scattering; no pore detail |
+| Leather | Acceptable after colour correction; no wear patterns that follow the form |
+| Cloth structure | Not achieved. Shell garments cannot fold or carry seams |
+| Face expression, cockpit | Not attempted |
+
+See `runs/005-pilot/review.md`.
+
 ## Two routes to that level
 
 **A. All in Blender.** Every row above becomes its own learn-and-verify pass. The rows where

@@ -51,6 +51,17 @@ Question: how can a character be made to dance from motion-capture data?
 
 See `notes/motion.md` and `runs/003-dance/review.md`.
 
+## Fourth and fifth passes (13 Nov 2026, in progress)
+
+Question: can outfits, props and a hero close-up be built from scratch at the level of the owner's reference?
+
+- Garments cut from the body's helper shells; strand hair and fur; goggles; leather, fabric and skin materials
+- Result: `runs/005-pilot/pilot.png`. Fur, moustache, glass and skin get close; cloth structure does not
+- Not yet measured: these recipes have no checks in the test suite
+- Environments and props are not started
+
+See `notes/quality-gap.md` and `runs/005-pilot/review.md`.
+
 ## Setup
 
     pip install -r requirements.txt
