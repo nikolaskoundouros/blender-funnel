@@ -72,3 +72,23 @@ beyond the "Available here" column.
 1. Where does the reference come from, and what was its "before"?
 2. Which matters more: full control inside Blender, or reaching the look quickly?
 3. Stills, or moving shots? Fur, skin and cloth simulation all cost far more per frame.
+
+## Side by side with real frames from the clip (13 Nov 2026)
+
+Comparing `runs/005-pilot/pilot.png` with the clip at 24.6 s, and run 006 step 4 with the
+clip at 0.6 s. What the full-size frames show that the first pasted image did not:
+
+- **Light.** The reference is outdoors in bright daylight under a clouded sky. Ours is a
+  dim studio. This is probably the cheapest large gain: sky lighting and a sky backdrop.
+- **Shearling.** Theirs is short, dense and matte, a few millimetres deep, slightly yellow.
+  Ours is long white fluff. Shorten, densify, darken.
+- **Moustache.** Theirs is thin and tidy. Ours is too bushy and wide.
+- **Helmet.** Theirs is grey leather in stitched panels with flaps down the cheeks meeting
+  under the chin. Ours is a dome that stops above the ears.
+- **Goggles.** Theirs have a soft dark gasket and a strap clipped to the helmet. Ours have
+  thick metal rings and a stub strap.
+- **Outfit layers.** Brown jacket with shearling cuffs, yellow life vest, cream harness
+  webbing with a round white release box, scarf, belt. We have jacket and collar only.
+- **Face.** Theirs smiles, shows teeth, and has darker, glossier skin.
+- **Style.** The clip is stylised realism (slightly enlarged heads and hands, game-like
+  shading), not photorealism. That is a more reachable target than a photograph.
