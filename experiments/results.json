@@ -1,0 +1,56 @@
+{
+  "blender": "5.3.0",
+  "experiments": {
+    "E1": {
+      "claim": "Larger light radius gives softer shadows",
+      "source": "manual: render/lights/light_object",
+      "measure": "pixels of partial shadow along a scanline across the shadow edge",
+      "values": {
+        "0.02": 2,
+        "1.0": 30
+      },
+      "confirmed": true
+    },
+    "E2": {
+      "claim": "+1 stop of exposure doubles pixel values",
+      "source": "manual: render/color_management/displays_views",
+      "measure": "mean pixel value under the Raw view at exposure 0 and +1",
+      "values": {
+        "0.0": 0.0599,
+        "1.0": 0.1199
+      },
+      "ratio": 2.002,
+      "confirmed": true
+    },
+    "E3": {
+      "claim": "AgX desaturates over-exposed colours; Standard clips them at full saturation",
+      "source": "manual: render/color_management/displays_views",
+      "measure": "mean saturation of the brightest quarter of an over-lit red ball",
+      "values": {
+        "Standard": 0.633,
+        "AgX": 0.451
+      },
+      "confirmed": true
+    },
+    "E4": {
+      "claim": "Default sky texture is too bright at exposure 0 and needs negative exposure",
+      "source": "manual: render/shader_nodes/textures/sky",
+      "measure": "median brightness and clipped fraction at exposure 0, -2 and -4 stops",
+      "values": {
+        "0.0": {
+          "median": 0.992,
+          "clipped": 0.8426
+        },
+        "-2.0": {
+          "median": 0.903,
+          "clipped": 0.0
+        },
+        "-4.0": {
+          "median": 0.751,
+          "clipped": 0.0
+        }
+      },
+      "confirmed": true
+    }
+  }
+}

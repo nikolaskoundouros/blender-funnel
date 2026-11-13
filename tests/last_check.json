@@ -1,0 +1,14 @@
+{
+  "blender": "5.3.0",
+  "recipes_tested_with": "5.3.0",
+  "checks": {
+    "check_principled": "pass",
+    "check_backdrop": "pass",
+    "check_three_point": "pass",
+    "check_solid_world": "pass",
+    "check_sky_world": "pass",
+    "check_set_view": "pass",
+    "check_camera_dof": "pass",
+    "check_render": "pass"
+  }
+}

@@ -1,0 +1,52 @@
+Color Management
+¶
+
+Color management is important to create renders and assets that are physically accurate and look great
+on multiple display devices. It is used both to ensure all parts of the pipeline interpret colors correctly,
+and to make artistic choices about the look.
+
+Color Spaces
+
+Linear Workflow
+
+Working Space
+
+Images and Video
+
+Built-in Color Spaces
+
+Displays and Views
+
+Overview
+
+Displays
+
+Views
+
+Images
+
+Video
+
+OpenColorIO
+
+ACES
+
+Active Configuration
+
+Environment Variables
+
+Roles
+
+Writing Configurations for Blender
+
+System Configuration
+
+Blender Settings
+
+Enabling Wide Gamut and HDR
+
+Wide Gamut
+
+HDR & Tone Mapping
+
+Gamma Discrepancies
