@@ -51,6 +51,15 @@ Clips are not stored in this repository; `tools/fetch_assets.sh` downloads the f
 | Poly Haven API (CC0) | A | n/a | Reachable; texture, HDRI and model listings. Not yet used |
 | Owner's reference image (pilot close-up) | target | n/a | Defines the quality level wanted; see notes/quality-gap.md |
 
+## Pass 6: cloth and garment prior work (13 Nov 2026)
+
+| Source | Trust | Targets | What it gave |
+|---|---|---|---|
+| Blender 5.3 manual: Cloth introduction, physical properties, collisions, shape; Collision | B | 5.3 | Pinning, sewing springs, shrinking factor, collider rules. Three claims confirmed in `experiments/verify_cloth.py` |
+| `maria-korosteleva/GarmentCode` @ d449629 (MIT) | C | 172 cm reference body | Sewing-pattern file format and four finished patterns; see `notes/garment-prior-work.md` |
+| Licence files of CLOTH3D, Deep Fashion3D, synthetic-cloth-data, BlenderProc; Hugging Face record for GarmageSet | A | n/a | Which garment data may be used in a public toolkit |
+| Owner-supplied overview of garment datasets | E | n/a | Leads; each checked independently |
+
 ## Could not be used
 
 | Source | Why |
