@@ -208,8 +208,8 @@ white about 0.02 (0.6 came out ginger). Write new cuts as new style functions.
 only their own guide (blending several coiled guides cancels the coils). Design from Blender's
 bundled "Curl Hair Curves" node group (procedural_hair_node_assets.blend), re-implemented in numpy.
 
-Settings that matched the reference mop: length 0.08, coil radius 0.0095, pitch 0.038 per turn,
-volume 0.035, lock spread 0.006, 280 guides, 100,000 children, radius 0.00007.
+Settings that matched the reference mop (step 6): length 0.065, sides 0.32 of that, coil radius 0.0095,
+pitch 0.038 per turn, volume 0.028, lock spread 0.006, 280 guides, 100,000 children, radius 0.00007.
 
 | Symptom | Fix |
 |---|---|
@@ -219,4 +219,5 @@ volume 0.035, lock spread 0.006, 280 guides, 100,000 children, radius 0.00007.
 | Thin telephone-cord coils | Coil radius 0.007 to 0.0095, pitch 0.022 to 0.038, lock spread 0.006 |
 | Zig-zag strays | Flyaway frizz 7x too strong; 3x on 1.5 percent of strands |
 | Bare parting at the front | Crown point further back (0.13 behind the face), hairline lower (0.042 above the eyes) |
+| Mop too wide, sides hang a whole eye-spacing below the eyes (owner: "a bit shorter") | Length 0.08 to 0.065, side factor 0.45 to 0.32, volume 0.035 to 0.028. Measure in eye-spacings against the reference |
 | Fringe over one eye vs fringe too high | `fringe_cut` 0.25 (0.45 showed the hairline) |

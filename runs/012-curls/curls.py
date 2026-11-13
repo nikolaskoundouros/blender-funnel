@@ -44,8 +44,8 @@ def curl_material():
 
 obj, info = haircut.curls(
     scene, base_verts, guides=env("GUIDES", 280), children=env("CHILDREN", 100000), mat=curl_material(), parent=boy,
-    style=lambda sc, p: haircut.curly_mop(sc, p, length=env("LENGTH", 0.08)),
-    grow_args=dict(coil_radius=env("COIL", 0.0095), coil_pitch=env("PITCH", 0.038), volume=env("VOLUME", 0.035)),
+    style=lambda sc, p: haircut.curly_mop(sc, p, length=env("LENGTH", 0.065), side=env("SIDE", 0.32)),
+    grow_args=dict(coil_radius=env("COIL", 0.0095), coil_pitch=env("PITCH", 0.038), volume=env("VOLUME", 0.028)),
     child_args=dict(spread=env("SPREAD", 0.006)))
 print("HAIR " + json.dumps(info))
 
@@ -56,7 +56,8 @@ color.set_view(scene, "AgX", look="Medium High Contrast")
 render.cycles_cpu(scene, width=W, height=H, samples=SAMPLES)
 aim = stage.empty_at(scene, "Aim", (0.0, lm["front_y"] + 0.09, lm["eye_z"] + 0.03))
 views = {"front": (-0.12, -0.80, lm["eye_z"] + 0.02), "side": (0.80, -0.05, lm["eye_z"] + 0.10),
-         "back": (0.25, 0.95, lm["eye_z"] + 0.20)}
+         "back": (0.25, 0.95, lm["eye_z"] + 0.20),
+         "low": (-0.10, -0.55, lm["eye_z"] - 0.22)}   # looking up, like the reference close-up
 names = os.environ.get("VIEWS", "front,side,back").split(",")
 tiles = []
 started = time.time()
