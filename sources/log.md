@@ -70,6 +70,12 @@ The clip is someone else's work. Its frames are kept out of the repository
 (`sources/reference/` and `runs/compare/` are git-ignored) and are used only to compare
 quality, not copied into anything we ship.
 
+## Tutorial video: particle hair (13 Nov 2026)
+
+| Source | Trust | Targets | What it gave |
+|---|---|---|---|
+| "Create Hair / Fur in Blender 4.2 using Particle System" (FilmTush, 52 s), file supplied by the owner | D | Blender 4.2 | Step-by-step legacy particle-hair workflow with settings; transcript by faster-whisper base.en. See `notes/tutorial-hair-particles.md` |
+
 ## Could not be used
 
 | Source | Why |
