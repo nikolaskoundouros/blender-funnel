@@ -44,7 +44,7 @@ def volume(verts, faces):
 # R1 -----------------------------------------------------------------------------------
 # Every body vertex should be fully owned by bones: weights present and summing to 1.
 report = {}
-for rig_name in ("default", "mixamo", "game_engine"):
+for rig_name in ("default", "mixamo", "game_engine", "cmu_mb"):
     names = list(rig.read_rig(rig_name).keys())
     table = rig._weight_matrix(rig_name, names, normalize=False)[:human.BODY_VERTS]  # as shipped
     sums = table.sum(axis=1)
@@ -56,7 +56,7 @@ for rig_name in ("default", "mixamo", "game_engine"):
         "most_bones_on_one_vertex": int((table > 1e-4).sum(axis=1).max()),
     }
 results["R1"] = {
-    "claim": "Every body vertex is weighted in all three rigs; default and game_engine sum to 1",
+    "claim": "Every body vertex is weighted in all four rigs; default and game_engine sum to 1",
     "values_as_shipped": report,
     "note": "mixamo weights are complete but not normalised in the file; the loader normalises them",
     "confirmed": bool(all(v["unweighted_body_vertices"] == 0 for v in report.values())

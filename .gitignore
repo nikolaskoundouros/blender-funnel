@@ -3,3 +3,4 @@ __pycache__/
 experiments/out/
 assets/
 runs/002-characters/*.blend
+runs/003-dance/frames/

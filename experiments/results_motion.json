@@ -1,0 +1,90 @@
+{
+  "clip": "05_02.bvh",
+  "M1": {
+    "claim": "Every limb of the character points where the clip's limb points",
+    "max_error_degrees_per_limb": {
+      "LeftArm": 0.0,
+      "LeftForeArm": 0.0,
+      "RightArm": 0.0,
+      "RightForeArm": 0.0,
+      "LeftUpLeg": 0.0,
+      "LeftLeg": 0.0,
+      "RightUpLeg": 0.0,
+      "RightLeg": 0.0,
+      "Spine": 0.0,
+      "Spine1": 0.0,
+      "Head": 0.0
+    },
+    "frames_checked": 10,
+    "bones_keeping_their_own_rest_orientation": [
+      "LThumb",
+      "LeftFingerBase",
+      "LeftHandIndex1",
+      "RThumb",
+      "RightFingerBase",
+      "RightHandIndex1"
+    ],
+    "confirmed": true
+  },
+  "M2": {
+    "claim": "The lower foot reaches the floor and does not sink more than 3 cm below it",
+    "values_m": {
+      "toe_joint_height_at_rest": 0.024,
+      "lowest_over_clip": 0.018,
+      "typical_low_5th_percentile": 0.024,
+      "highest_low_point": 0.127
+    },
+    "frames_below_floor_by_3cm": 0,
+    "frames": 224,
+    "confirmed": true
+  },
+  "M3": {
+    "claim": "Clothes stay over the skin while dancing (under 2 percent of vertices, 5 mm)",
+    "values_fraction_inside_visible_skin": {
+      "frame 1": 0.005,
+      "frame 25": 0.0047,
+      "frame 50": 0.0055,
+      "frame 75": 0.005,
+      "frame 100": 0.0022,
+      "frame 124": 0.0032,
+      "frame 149": 0.0035,
+      "frame 174": 0.0025,
+      "frame 199": 0.0035,
+      "frame 224": 0.0042
+    },
+    "confirmed": true
+  },
+  "M4": {
+    "claim": "Body volume stays within 5 percent of rest through the dance",
+    "values_posed_over_rest": {
+      "frame 1": 1.0129,
+      "frame 25": 1.0108,
+      "frame 50": 1.0115,
+      "frame 75": 1.0123,
+      "frame 100": 1.0185,
+      "frame 124": 1.0224,
+      "frame 149": 1.0112,
+      "frame 174": 1.0355,
+      "frame 199": 1.0157,
+      "frame 224": 1.0107
+    },
+    "confirmed": true
+  },
+  "M5": {
+    "claim": "Our BVH reader agrees with Blender's own BVH importer on where limbs point",
+    "max_difference_degrees_per_limb": {
+      "LeftArm": 0.0,
+      "LeftForeArm": 0.0,
+      "RightArm": 0.0,
+      "RightForeArm": 0.0,
+      "LeftUpLeg": 0.0,
+      "LeftLeg": 0.0,
+      "RightUpLeg": 0.0,
+      "RightLeg": 0.0,
+      "Spine": 0.0,
+      "Spine1": 0.765,
+      "Head": 0.0
+    },
+    "confirmed": true
+  }
+}

@@ -1,6 +1,6 @@
 {
   "R1": {
-    "claim": "Every body vertex is weighted in all three rigs; default and game_engine sum to 1",
+    "claim": "Every body vertex is weighted in all four rigs; default and game_engine sum to 1",
     "values_as_shipped": {
       "default": {
         "bones": 163,
@@ -22,6 +22,13 @@
         "weight_sum_min": 1.0,
         "weight_sum_max": 1.0,
         "most_bones_on_one_vertex": 6
+      },
+      "cmu_mb": {
+        "bones": 31,
+        "unweighted_body_vertices": 0,
+        "weight_sum_min": 1.0,
+        "weight_sum_max": 1.0,
+        "most_bones_on_one_vertex": 7
       }
     },
     "note": "mixamo weights are complete but not normalised in the file; the loader normalises them",

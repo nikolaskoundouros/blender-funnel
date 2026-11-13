@@ -10,7 +10,7 @@ tested building blocks, and to build Blender scenes from those blocks.
 | `sources/` | Log of everything consulted, and the raw text of manual pages |
 | `notes/` | Claims extracted from sources, each marked verified or not, with evidence |
 | `experiments/` | Small renders that test claims by measurement |
-| `recipes/` | Tested functions for lights, world, colour, camera, backdrop, materials, human characters and skeletons |
+| `recipes/` | Tested functions for lights, world, colour, camera, backdrop, materials, human characters, skeletons and motion |
 | `tests/` | Re-runs every recipe; catches breakage when Blender changes |
 | `runs/` | One folder per scene built: script, renders, numbers, written review |
 | `tools/` | Page-to-text converter, image statistics, on-screen label lookup |
@@ -40,10 +40,21 @@ Question: how can human characters with outfits be created from code?
 
 See `notes/characters.md` and `runs/002-characters/review.md`.
 
+## Third pass (13 Nov 2026, Blender 5.3.0)
+
+Question: how can a character be made to dance from motion-capture data?
+
+- Wrote a BVH reader and motion transfer (`recipes/motion.py`) for the CMU motion-capture clips
+- 5 claims tested by measurement, all confirmed, including agreement with Blender's own importer
+- 12 recipe checks pass
+- Result: `runs/003-dance/dance.mp4`, a clothed character performing a 9-second modern-dance clip
+
+See `notes/motion.md` and `runs/003-dance/review.md`.
+
 ## Setup
 
     pip install -r requirements.txt
-    tools/fetch_assets.sh               # character data, about 350 MB, not stored in git
+    tools/fetch_assets.sh               # character and motion data, about 370 MB, not stored in git
     python tests/check_recipes.py
 
 Needs Python 3.13 for `bpy` 5.3. No Blender installation or GPU is required.

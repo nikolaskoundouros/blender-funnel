@@ -330,7 +330,9 @@ def build_human(scene, name="Human", skin="young_caucasian_female", outfit=(), h
     _, uvs, faces, face_uvs = base_mesh()
 
     covered = set()
-    pending = [("clothes", n, None) for n in outfit]
+    # Outfit entries are asset names, or garment specs made by recipes/garments.py.
+    pending = [("clothes", n, None) for n in outfit if isinstance(n, str)]
+    generated = [g for g in outfit if not isinstance(g, str)]
     if hair:
         pending.append(("hair", hair, None))
     if eyes:
@@ -346,6 +348,8 @@ def build_human(scene, name="Human", skin="young_caucasian_female", outfit=(), h
     items = [(k, n, m, read_mhclo(find_asset(k, n))) for k, n, m in pending]
     for _, _, _, item in items:
         covered |= item["delete"]
+    for garment in generated:
+        covered |= garment["delete"]
     keep = [i for i, f in enumerate(faces)
             if all(v < BODY_VERTS for v in f) and not all(v in covered for v in f)]
     body = _mesh_object(scene, name, base_verts[:BODY_VERTS], [faces[i] for i in keep],
@@ -356,6 +360,12 @@ def build_human(scene, name="Human", skin="young_caucasian_female", outfit=(), h
         obj, item = add_item(scene, base_verts, kind, item_name, mat, parent=body)
         obj.name = f"{name}_{item_name}"
         fitted.append((obj, item))
+
+    if generated:
+        from . import garments  # imported here: garments.py imports this module
+        for garment in generated:
+            fitted.append(garments.build(scene, base_verts, garment, f"{name}_{garment['name']}",
+                                         parent=body))
 
     root = body
     if pose is not None:

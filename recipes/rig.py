@@ -85,6 +85,8 @@ def _assign(obj, table, bone_names, armature):
             group.add([int(r)], float(table[r, col]), "REPLACE")
     mod = obj.modifiers.new("Armature", "ARMATURE")
     mod.object = armature
+    # Bend first, then add thickness and smoothing: cheaper and cleaner than the reverse.
+    obj.modifiers.move(len(obj.modifiers) - 1, 0)
     obj.parent = armature
 
 

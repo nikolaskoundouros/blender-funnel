@@ -31,6 +31,26 @@ The tutorial repository is not copied here; ideas were re-implemented.
 The asset pack and MPFB data are not stored in this repository. `tools/fetch_assets.sh`
 downloads both (tested from scratch: 31 s).
 
+## Pass 3: motion (fetched 13 Nov 2026)
+
+| Source | Trust | Targets | What it gave |
+|---|---|---|---|
+| `una-dinosauria/cmu-mocap` @ 09a07f5: CMU Graphics Lab Motion Capture Database, BVH conversion by B. Hahne (2010) | A | 31-joint "MotionBuilder-friendly" skeleton | 2,548 clips with an index; four dance clips used: 05_02 modern dance, 15_04 dance moves, 55_02 lambada, 60_01 salsa. Readme states the data is free for research and commercial use |
+| MakeHuman data: `rig.cmu_mb.json`, `weights.cmu_mb.json` (CC0) | A | hm08 base mesh | A skeleton with the same joint names as the CMU clips |
+| Blender 5.3.0 bundled BVH importer (`io_anim_bvh`) | A | 5.3.0 | Used only as an independent check of our own BVH reader |
+
+Clips are not stored in this repository; `tools/fetch_assets.sh` downloads the four used.
+
+## Pass 4: environments, props, outfits (in progress, 13 Nov 2026)
+
+| Source | Trust | Targets | What it gave |
+|---|---|---|---|
+| Blender 5.3.0 node and socket names, read from the program | A | 5.3.0 | Principled inputs ("Sheen Weight", "Coat Weight", "Transmission Weight", "Thin Wall"); texture node inputs; `Mesh.set_sharp_from_angle` no longer exists |
+| MakeHuman base mesh helper shells (CC0) | A | hm08 | "helper-tights" (2,650 quads, about 5 mm off the skin) and "helper-skirt"; both carry UVs and skin weights. Basis for generated garments |
+| Blender 5.3.0 bundled asset files | A | 5.3.0 | 32 procedural hair node groups, XPBD cloth solver node groups, compositing effects (grain, vignette). Found, not yet used |
+| Poly Haven API (CC0) | A | n/a | Reachable; texture, HDRI and model listings. Not yet used |
+| Owner's reference image (pilot close-up) | target | n/a | Defines the quality level wanted; see notes/quality-gap.md |
+
 ## Could not be used
 
 | Source | Why |

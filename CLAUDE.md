@@ -44,6 +44,13 @@ Knowledge only counts once it is written here and tested. Follow the loop in ord
 data. Describe poses by where limbs point (`rig.aim_limb`), not by rotation angles. After
 changing anything in `human.py` or `rig.py`, re-run `verify_human.py` and `verify_rig.py`.
 
+## Motion
+
+`recipes/motion.py` reads BVH clips and transfers them onto a character built with
+`rig_name="cmu_mb"`. Transfer world orientations, never raw clip rotations: the clip's rest
+pose differs from the character's. A self-consistency check is not verification; compare
+against an independent implementation where one exists (here, Blender's BVH importer).
+
 ## Tutorial videos
 
 YouTube blocks automated access from cloud machines. Video understanding comes from the
@@ -59,4 +66,5 @@ video goes in `sources/video/<video-id>/` and enters the loop at step 3. Use
     python experiments/verify_claims.py
     python experiments/verify_human.py
     python experiments/verify_rig.py
+    python experiments/verify_motion.py
     python runs/001-flat-render/build.py

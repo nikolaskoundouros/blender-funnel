@@ -17,7 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
 import recipes  # noqa: E402
-from recipes import camera, color, human, lighting, render, rig, stage, world  # noqa: E402
+from recipes import camera, color, human, lighting, motion, render, rig, stage, world  # noqa: E402
 
 CAM = (6.0, -6.0, 3.0)
 
@@ -113,7 +113,21 @@ def check_human_mixamo_rig():
     assert "mixamorig:Hips" in root.data.bones and len(root.data.bones) == 52
 
 
-HUMAN_CHECKS = [check_human_clothed, check_human_posed, check_human_mixamo_rig]
+def check_motion_retarget():
+    clip_path = os.path.join(human.ASSETS, "motion", "cmu", "05_02.bvh")
+    scene = stage.new_scene()
+    root = human.build_human(scene, name="D", outfit=(), hair=None, pose=[], rig_name="cmu_mb")
+    move = motion.retarget(root, motion.read_bvh(clip_path), stop=200)
+    frames = motion.apply(root, move)
+    assert frames == 39 and move["fps"] == 24
+    scene.frame_set(1)
+    a = (root.matrix_world @ root.pose.bones["LeftForeArm"].head).copy()
+    scene.frame_set(frames)
+    b = root.matrix_world @ root.pose.bones["LeftForeArm"].head
+    assert (a - b).length > 0.01  # the arm actually moves
+
+
+HUMAN_CHECKS = [check_human_clothed, check_human_posed, check_human_mixamo_rig, check_motion_retarget]
 HAVE_ASSETS = os.path.exists(os.path.join(human.DATA, "3dobjs", "base.obj"))
 
 CHECKS = [check_principled, check_backdrop, check_three_point, check_solid_world,
