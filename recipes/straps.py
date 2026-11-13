@@ -52,9 +52,13 @@ def _path(bvh, waypoints, step, lift):
         pts.append(np.array(hit) + n * lift)
         nrm.append(n)
     pts, nrm = np.array(pts), np.array(nrm)
-    # gentle smoothing so the strap does not follow every small bump
+    # gentle smoothing so the strap does not follow every small bump, and smoother normals
+    # so it lies flat instead of twisting where the surface underneath is uneven
     for _ in range(3):
         pts[1:-1] = 0.5 * pts[1:-1] + 0.25 * (pts[:-2] + pts[2:])
+    for _ in range(6):
+        nrm[1:-1] = 0.5 * nrm[1:-1] + 0.25 * (nrm[:-2] + nrm[2:])
+        nrm /= np.linalg.norm(nrm, axis=1, keepdims=True)
     return pts, nrm
 
 

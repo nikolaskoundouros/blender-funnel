@@ -274,8 +274,9 @@ def leather(name="Leather", color=(0.22, 0.12, 0.06), on="object", grain=0.0025,
     return mat
 
 
-def hair_fibre(name="Hair", color=(0.08, 0.05, 0.03), roughness=0.45):
-    """Material for strand hair and fur (Principled Hair shader, set by colour)."""
+def hair_fibre(name="Hair", color=(0.08, 0.05, 0.03), roughness=0.45, variation=0.0):
+    """Material for strand hair and fur (Principled Hair shader, set by colour).
+    variation: how much colour differs from strand to strand (0 to 1)."""
     mat, nodes, links, bsdf = _new(name)
     out = next(n for n in nodes if n.type == "OUTPUT_MATERIAL")
     hair = nodes.new("ShaderNodeBsdfHairPrincipled")
@@ -283,6 +284,13 @@ def hair_fibre(name="Hair", color=(0.08, 0.05, 0.03), roughness=0.45):
     hair.inputs["Color"].default_value = (*color, 1.0)
     hair.inputs["Roughness"].default_value = roughness
     hair.inputs["Radial Roughness"].default_value = min(1.0, roughness + 0.2)
+    if variation:
+        # Per-strand shade from each strand's random value. (The shader's own "Random
+        # Color" input only works in melanin mode, not the colour mode used here.)
+        info = nodes.new("ShaderNodeHairInfo")
+        dark = tuple(c * (1.0 - variation) for c in color)
+        light = tuple(min(1.0, c * (1.0 + 0.6 * variation)) for c in color)
+        links.new(_ramp(nodes, links, info.outputs["Random"], dark, light), hair.inputs["Color"])
     links.new(hair.outputs["BSDF"], out.inputs["Surface"])
     return mat
 
@@ -411,4 +419,151 @@ def add_channels(mat, width=0.07, depth=0.009, axis="X"):
     links.new(puff.outputs[0], disp.inputs["Height"])
     links.new(disp.outputs["Displacement"], out.inputs["Displacement"])
     mat.displacement_method = "BOTH"
+    return mat
+
+
+def add_wear(mat, grime=0.45, grime_color=(0.16, 0.13, 0.10), patches=0.35, patch_scale=7.0,
+             seams=True, seam_width=0.012, cavities=0.5, cavity_reach=0.04, edge_wear=0.0,
+             edge_color=None, scratches=0.0):
+    """Weathering on top of an existing material: dirt in cavities and along seams, blotchy
+    grime patches, and optionally rubbed-light edges and fine scratches (for leather).
+
+    grime: overall strength (0 clean, 1 filthy). grime_color: the colour dirt pulls toward.
+    seams: darken along open edges and seams (needs the edge_dist attribute that garments
+    and straps carry; leave False on other objects). cavities: darkening in creases and
+    under overlaps, from Cycles' ambient-occlusion node, reaching `cavity_reach` metres.
+    edge_wear: lighten and roughen convex edges and high points (rubbed leather).
+    """
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
+
+    def node(kind, **inputs):
+        n = nodes.new(kind)
+        for k, v in inputs.items():
+            if isinstance(v, (int, float, tuple)):
+                n.inputs[k].default_value = v
+            else:
+                links.new(v, n.inputs[k])
+        return n
+
+    def math(op, a, b=None, clamp=False):
+        n = nodes.new("ShaderNodeMath"); n.operation = op; n.use_clamp = clamp
+        for i, value in enumerate((a, b)):
+            if value is None:
+                continue
+            if isinstance(value, (int, float)):
+                n.inputs[i].default_value = value
+            else:
+                links.new(value, n.inputs[i])
+        return n.outputs[0]
+
+    coord = nodes.new("ShaderNodeTexCoord")
+    noise = node("ShaderNodeTexNoise", Vector=coord.outputs["Object"], Scale=patch_scale, Detail=6.0, Roughness=0.65)
+    patch = math("MULTIPLY", math("SUBTRACT", noise.outputs["Fac"], 0.45, clamp=True), 2.2 * patches, clamp=True)
+    ao = nodes.new("ShaderNodeAmbientOcclusion")
+    ao.inputs["Distance"].default_value = cavity_reach
+    ao.samples = 8
+    dirt = math("MULTIPLY", math("SUBTRACT", 1.0, ao.outputs["AO"]), cavities)
+    dirt = math("MAXIMUM", dirt, patch)
+    if seams:
+        attr = nodes.new("ShaderNodeAttribute"); attr.attribute_name = "edge_dist"
+        seam = math("SUBTRACT", 1.0, math("DIVIDE", attr.outputs["Fac"], seam_width), clamp=True)
+        dirt = math("MAXIMUM", dirt, math("MULTIPLY", seam, 0.8))
+    dirt = math("MULTIPLY", dirt, grime, clamp=True)
+
+    base_link = next((l for l in links if l.to_socket == bsdf.inputs["Base Color"]), None)
+    base = base_link.from_socket if base_link else None
+    mix = nodes.new("ShaderNodeMix"); mix.data_type = "RGBA"; mix.blend_type = "MIX"
+    links.new(dirt, mix.inputs[0])
+    if base is not None:
+        links.new(base, mix.inputs[6])
+    else:
+        mix.inputs[6].default_value = bsdf.inputs["Base Color"].default_value
+    mix.inputs[7].default_value = (*grime_color, 1.0)
+    out_color = mix.outputs[2]
+
+    rough_link = next((l for l in links if l.to_socket == bsdf.inputs["Roughness"]), None)
+    rough_base = rough_link.from_socket if rough_link else bsdf.inputs["Roughness"].default_value
+    rough = math("ADD", rough_base, math("MULTIPLY", dirt, 0.15), clamp=True)
+
+    if edge_wear > 0:
+        geo = nodes.new("ShaderNodeNewGeometry")
+        edge = math("MULTIPLY", math("SUBTRACT", geo.outputs["Pointiness"], 0.52, clamp=True), 14.0, clamp=True)
+        speck = node("ShaderNodeTexNoise", Vector=coord.outputs["Object"], Scale=60.0, Detail=4.0)
+        edge = math("MULTIPLY", edge, math("MULTIPLY", speck.outputs["Fac"], 1.6), clamp=True)
+        edge = math("MULTIPLY", edge, edge_wear, clamp=True)
+        light = nodes.new("ShaderNodeMix"); light.data_type = "RGBA"
+        links.new(edge, light.inputs[0])
+        links.new(out_color, light.inputs[6])
+        b = bsdf.inputs["Base Color"].default_value
+        light.inputs[7].default_value = (*(edge_color or tuple(min(1.0, b[i] * 2.0 + 0.05) for i in range(3))), 1.0)
+        out_color = light.outputs[2]
+        rough = math("ADD", rough, math("MULTIPLY", edge, 0.2), clamp=True)
+    if scratches > 0:
+        cells = nodes.new("ShaderNodeTexVoronoi"); cells.feature = "DISTANCE_TO_EDGE"
+        stretch = nodes.new("ShaderNodeMapping"); stretch.inputs["Scale"].default_value = (1.0, 1.0, 4.0)
+        links.new(coord.outputs["Object"], stretch.inputs["Vector"])
+        links.new(stretch.outputs["Vector"], cells.inputs["Vector"])
+        cells.inputs["Scale"].default_value = 22.0
+        line = math("SUBTRACT", 1.0, math("DIVIDE", cells.outputs["Distance"], 0.006), clamp=True)
+        # Only in scattered spots: a full network of lines reads as cracked stone (first try).
+        sparse = node("ShaderNodeTexNoise", Vector=coord.outputs["Object"], Scale=5.0, Detail=2.0)
+        line = math("MULTIPLY", line, math("MULTIPLY", math("SUBTRACT", sparse.outputs["Fac"], 0.58, clamp=True), 6.0, clamp=True))
+        line = math("MULTIPLY", line, scratches, clamp=True)
+        scratch = nodes.new("ShaderNodeMix"); scratch.data_type = "RGBA"
+        links.new(line, scratch.inputs[0])
+        links.new(out_color, scratch.inputs[6])
+        b = bsdf.inputs["Base Color"].default_value
+        scratch.inputs[7].default_value = (min(1.0, b[0] * 1.8 + 0.06), min(1.0, b[1] * 1.8 + 0.05), min(1.0, b[2] * 1.8 + 0.05), 1.0)
+        out_color = scratch.outputs[2]
+    links.new(out_color, bsdf.inputs["Base Color"])
+    if isinstance(rough, float):
+        bsdf.inputs["Roughness"].default_value = rough
+    else:
+        links.new(rough, bsdf.inputs["Roughness"])
+    return mat
+
+
+def add_creases(mat, scale=18.0, strength=0.35, stretch=(1.0, 1.0, 2.5)):
+    """Soft creases and wrinkles as surface relief, chained onto any existing bump.
+    stretch: makes wrinkles run mostly one way (e.g. across a sleeve)."""
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
+    coord = nodes.new("ShaderNodeTexCoord")
+    mapping = nodes.new("ShaderNodeMapping"); mapping.inputs["Scale"].default_value = stretch
+    links.new(coord.outputs["Object"], mapping.inputs["Vector"])
+    wave = nodes.new("ShaderNodeTexNoise")
+    wave.inputs["Scale"].default_value = scale
+    wave.inputs["Detail"].default_value = 3.0
+    wave.inputs["Distortion"].default_value = 1.2
+    links.new(mapping.outputs["Vector"], wave.inputs["Vector"])
+    ridge = nodes.new("ShaderNodeMath"); ridge.operation = "PINGPONG"; ridge.inputs[1].default_value = 0.08
+    links.new(wave.outputs["Fac"], ridge.inputs[0])
+    bump = nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = strength
+    bump.inputs["Distance"].default_value = 0.003
+    links.new(ridge.outputs[0], bump.inputs["Height"])
+    normal_link = next((l for l in links if l.to_socket == bsdf.inputs["Normal"]), None)
+    if normal_link is not None:
+        links.new(normal_link.from_socket, bump.inputs["Normal"])
+    links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat
+
+
+def webbing(name="Webbing", color=(0.46, 0.43, 0.33), rib=0.0016):
+    """Woven strap webbing: fine ribs running along the strap (needs the strap's UVs,
+    whose first coordinate is the position across the strap in metres)."""
+    mat, nodes, links, bsdf = _new(name)
+    tc = nodes.new("ShaderNodeTexCoord")
+    split = nodes.new("ShaderNodeSeparateXYZ")
+    links.new(tc.outputs["UV"], split.inputs["Vector"])
+    ribs = nodes.new("ShaderNodeMath"); ribs.operation = "SINE"
+    scale = nodes.new("ShaderNodeMath"); scale.operation = "MULTIPLY"; scale.inputs[1].default_value = 3.14159 / rib
+    links.new(split.outputs["X"], scale.inputs[0])
+    links.new(scale.outputs[0], ribs.inputs[0])
+    shade = tuple(c * 0.86 for c in color)
+    links.new(_ramp(nodes, links, ribs.outputs[0], shade, color, 0.0, 1.0), bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = 0.85
+    bsdf.inputs["Sheen Weight"].default_value = 0.3
+    _bump(nodes, links, bsdf, ribs.outputs[0], strength=0.35, distance=0.0004)
     return mat
