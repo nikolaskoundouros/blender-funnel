@@ -64,7 +64,10 @@ strap = garments.leg_patch("shoulder_strap", limb="arm", s=(-0.02, 0.40), theta=
 cuffs = garments.band(name="cuffs", limb="arm", start=1.70, end=1.97, ease=JACKET_EASE + 0.016, thickness=0.02,
                       smooth_shell=SMOOTH, material=materials.plain("Shearling", (0.62, 0.55, 0.42), 0.95))
 # Shearling lapel collar lying over the vest (step 7). The first collar was a fur tube.
-collar = garments.lapel_collar(smooth_shell=SMOOTH,
+# Step 8: step 7's outline, inflated into thick cushions (as step 5 had thickness), sitting
+# low round the neck, with short dense fuzz. Step 7 was flat and rose like a hood.
+collar = garments.lapel_collar(smooth_shell=SMOOTH, neckline=0.98, throat=0.90, roll=0.0, ease=0.088,
+                               thickness=0.012, cushion=0.05, cushion_width=0.055,
                                material=wear(materials.shearling(relief=0.45, clump=0.004), grime=0.35, grime_color=(0.32, 0.29, 0.24),
                                              seams=True, seam_width=0.01, cavities=0.6))
 shirt = garments.top(name="shirt", sleeve=0.4, collar=0.99, hem=0.08, ease=0.004, smooth_shell=SMOOTH,
@@ -88,7 +91,7 @@ vest_obj.modifiers["Subdivision"].render_levels = 3      # resolution for the ch
 wool = materials.hair_fibre("Wool", (0.56, 0.50, 0.39), roughness=0.95, variation=0.25)
 # No strands on the collar: at this distance the clip's collar reads as smooth pile, and
 # strands made it look like a towel.
-for part_name, count, length in (("_cuffs", 50000, 0.004),):
+for part_name, count, length in (("_collar", 160000, 0.0035), ("_cuffs", 50000, 0.004)):
     obj = next(o for o in pilot.children if o.name.endswith(part_name))
     v, f = hair.evaluated_mesh(obj)
     roots, normals = hair.sample_surface(v, f, count, seed=len(part_name))

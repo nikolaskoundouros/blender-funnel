@@ -467,7 +467,7 @@ def torso_patch(name, outline, ease, thickness, material, smooth_shell=0, step=0
 
 def lapel_collar(name="collar", tips=0.64, wings=0.80, back=0.86, neckline=1.02, throat=0.94,
                  tip_angle=150.0, ease=0.105, roll=0.02, thickness=0.036, material=None,
-                 smooth_shell=0, soften=8):
+                 smooth_shell=0, soften=8, cushion=0.0, cushion_width=0.05):
     """A large turned-down shearling collar: a roll behind the neck, wings lying over the
     shoulders, and two rounded lapel points on the chest with a V opening between them.
 
@@ -490,6 +490,9 @@ def lapel_collar(name="collar", tips=0.64, wings=0.80, back=0.86, neckline=1.02,
     # Relax the crumpling where the neck shell bends sharply, with the edge held still.
     # (Plain smoothing, tried first, pulled the edge in unevenly and left it ragged.)
     spec["relax"] = soften
+    # cushion: how far the middle of each lobe swells out, in metres; with a rounded
+    # profile this gives the thick, pillowy roll of real shearling instead of a flat flap.
+    spec["puff"], spec["puff_width"], spec["puff_shape"] = cushion, cushion_width, 0.5
     return spec
 
 
@@ -832,9 +835,10 @@ def build(scene, base_verts, garment, name, parent=None):
         verts = (surf[tri] * weight[:, :, None]).sum(axis=1)
         n = (normals[tri] * weight[:, :, None]).sum(axis=1)
         n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
-        if garment.get("puff"):                   # a filled pocket bulges in the middle
+        if garment.get("puff"):                   # a filled pocket or a cushion bulges in the middle
             inner, _ = edge_attributes(verts, faces)
-            ease = ease + garment["puff"] * np.clip(inner / 0.035, 0.0, 1.0)[:, None] ** 0.7
+            reach = garment.get("puff_width", 0.035)
+            ease = ease + garment["puff"] * np.clip(inner / reach, 0.0, 1.0)[:, None] ** garment.get("puff_shape", 0.7)
     else:
         verts = (all_bl[tri] * weight[:, :, None]).sum(axis=1)
         # Normals are taken before panels are moved apart, so both copies of a seam
