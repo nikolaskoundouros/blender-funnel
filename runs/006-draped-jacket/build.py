@@ -24,10 +24,16 @@ SLIDERS = dict(gender=1.0, age=0.55, muscle=0.6, weight=0.55, height=0.5,
 
 scene = stage.new_scene()
 leather = materials.leather("Jacket leather", (0.032, 0.017, 0.010), on="garment", wear=0.3, grain=0.0014)
+jacket_spec = garments.top(name="jacket", sleeve=1.95, collar=0.93, hem=-0.16, ease=0.035,
+                           thickness=0.005, material=leather, soften=0)
+# Step 3: the jacket is cut into panels (two fronts, back, sleeves) that the simulation
+# sews together; the centre front stays open above mid-chest, over an undershirt.
+jacket_spec["panels"] = {"open_above": 0.62}
 pilot = human.build_human(
     scene, name="Pilot", skin="middleage_caucasian_male", hair=None, eyes="brown",
-    outfit=(garments.top(name="jacket", sleeve=1.95, collar=0.93, hem=-0.16, ease=0.035,
-                         thickness=0.005, material=leather, soften=6),
+    outfit=(jacket_spec,
+            garments.top(name="shirt", sleeve=0.4, collar=0.99, hem=-0.05, ease=0.006,
+                         material=materials.fabric((0.80, 0.74, 0.60), on="garment")),
             garments.collar(low=0.90, high=1.07, ease=0.05, thickness=0.035),
             garments.helmet(material=materials.leather("Helmet leather", (0.022, 0.015, 0.011), wear=0.3, grain=0.0014)),
             garments.trousers(material=materials.fabric((0.30, 0.27, 0.20), on="garment"))),
@@ -40,12 +46,15 @@ materials.soften_skin(body.data.materials[0])
 binding = human.BINDINGS[jacket.name]
 h = garments.coordinate(binding, "h")
 on_arm = np.isin(garments.part(binding), ("arm", "hand"))
-pin = np.where(on_arm, 0.0, np.clip((h - 0.86) / 0.06, 0.0, 1.0))
+arm = garments.coordinate(binding, "arm")
+# Step 3 left the sleeves unpinned: their weight pulled the shoulder seams open. The top
+# of each sleeve is now held as well, fading out over the first fifth of the upper arm.
+pin = np.where(on_arm, np.clip((0.20 - arm) / 0.14, 0.0, 1.0), np.clip((h - 0.86) / 0.06, 0.0, 1.0))
 # Step 1 collided with the visible body, whose skin under the jacket is removed: the
 # sleeves fell onto bare arms. The cloth now rests on a complete invisible copy.
 solid_body = next(c for c in pilot.children if c.name.endswith("_collider"))
 cloth.make_collider(solid_body)
-cloth.add_cloth(jacket, pin_weights=pin, fabric="leather", spare=0.06)
+cloth.add_cloth(jacket, pin_weights=pin, fabric="leather", spare=0.06, sewing_force=60.0)
 before_v, before_f = hair.evaluated_mesh(jacket)
 started = time.time()
 frames = cloth.simulate(scene, 45)

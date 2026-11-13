@@ -35,7 +35,7 @@ def make_collider(obj, thickness=0.006):
 
 
 def add_cloth(obj, pin_weights=None, fabric="cotton", spare=0.05, resolution=1, quality=10,
-              clearance=0.006, self_collision=True):
+              clearance=0.006, self_collision=True, sewing_force=12.0):
     """Make a garment object simulate as cloth.
 
     pin_weights: one value per base vertex of the garment, 1 = fixed to the skeleton.
@@ -60,6 +60,9 @@ def add_cloth(obj, pin_weights=None, fabric="cotton", spare=0.05, resolution=1, 
     s.shear_stiffness, s.bending_stiffness = f["shear"], f["bending"]
     s.air_damping = f["air"]
     s.shrink_min = -spare
+    if any(e.is_loose for e in obj.data.edges):   # panels joined by sewing edges
+        s.use_sewing_springs = True
+        s.sewing_force_max = sewing_force
     if pin_weights is not None:
         group = obj.vertex_groups.new(name="cloth_pin")
         for i, w in enumerate(pin_weights):

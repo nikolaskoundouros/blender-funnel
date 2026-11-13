@@ -5,13 +5,13 @@
     540
   ],
   "samples": 48,
-  "render_seconds": 22,
+  "render_seconds": 23,
   "drape": {
     "frames": 45,
-    "simulation_seconds": 38,
-    "fold_measure_degrees_before": 4.08,
-    "fold_measure_degrees_after": 10.31,
-    "largest_vertex_move_m": 0.103,
-    "fraction_inside_skin_3mm": 0.0006
+    "simulation_seconds": 42,
+    "fold_measure_degrees_before": 6.32,
+    "fold_measure_degrees_after": 14.31,
+    "largest_vertex_move_m": 0.177,
+    "fraction_inside_skin_3mm": 0.0005
   }
 }

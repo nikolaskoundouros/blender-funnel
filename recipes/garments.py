@@ -221,6 +221,69 @@ def part(binding):
     return _body_coordinates()["part"][binding["tri"][:, 0]]
 
 
+def _split_panels(faces, tri, weight, sources, spec):
+    """Cut a garment into panels and return what is needed to sew them back together.
+
+    Panels: left and right sleeve, and the body split down the centre front only (the
+    back stays in one piece). Where panels meet, each gets its own copy of the shared
+    vertices, and a loose edge between the copies acts as a sewing spring in the cloth
+    simulation. The centre front is sewn only below spec["open_above"] (a torso height);
+    above it the two edges are moved apart to form an opening.
+
+    Returns (faces, tri, weight, nudge[n,3] in metres, sewing edges).
+    """
+    c = _body_coordinates()
+    vb, part = c["vb"], c["part"]
+    y_mid = vb[TIGHTS[0]:TIGHTS[1] + 1, 1].mean()
+
+    def panel(src):
+        left = vb[list(src), 0].mean() > 0
+        if all(part[v] in ("arm", "hand") for v in src):
+            return "SL" if left else "SR"
+        return "TL" if left else "TR"
+
+    face_panel = [panel(src) for src in sources]
+    users = {}
+    for f, p in zip(faces, face_panel):
+        for gv in f:
+            users.setdefault(gv, set()).add(p)
+    height = (c["h"][tri] * weight).sum(axis=1)
+    new_tri, new_weight = [tuple(t) for t in tri], [tuple(w) for w in weight]
+    nudge = [np.zeros(3) for _ in tri]
+    remap, sew = {}, []
+    for gv, panels in users.items():
+        b = tri[gv][0]
+        front_mid = abs(vb[b][0]) < 1e-3 and vb[b][1] < y_mid
+        torso = sorted(p for p in panels if p[0] == "T")
+        classes = []
+        if len(torso) == 2 and front_mid:
+            classes += [[torso[0]], [torso[1]]]
+        elif torso:
+            classes.append(torso)
+        classes += [[p] for p in sorted(panels) if p[0] == "S"]
+        copies = []
+        for k, cls in enumerate(classes):
+            if k == 0:
+                idx = gv
+            else:
+                idx = len(new_tri)
+                new_tri.append(tuple(tri[gv])); new_weight.append(tuple(weight[gv])); nudge.append(np.zeros(3))
+            for p in cls:
+                remap[(gv, p)] = idx
+            copies.append(idx)
+        if len(torso) == 2 and front_mid:
+            gap = 0.003 + 0.14 * max(0.0, height[gv] - spec["open_above"])
+            nudge[copies[0]] = np.array([gap, 0.0, 0.0])     # TL copy moves to the wearer's left
+            nudge[copies[1]] = np.array([-gap, 0.0, 0.0])
+            if height[gv] <= spec["open_above"]:
+                sew.append((copies[0], copies[1]))
+            sew += [(copies[0], other) for other in copies[2:]]
+        else:
+            sew += [(copies[0], other) for other in copies[1:]]
+    new_faces = [tuple(remap[(gv, p)] for gv in f) for f, p in zip(faces, face_panel)]
+    return new_faces, np.array(new_tri, dtype=int), np.array(new_weight), np.array(nudge), sew
+
+
 def _vertex_normals(verts, faces):
     normals = np.zeros_like(verts)
     for f in faces:
@@ -231,17 +294,38 @@ def _vertex_normals(verts, faces):
     return normals / np.maximum(length, 1e-12)
 
 
+def _vertex_normals_welded(verts, faces):
+    """Vertex normals where vertices at the same position share one normal."""
+    key = {}
+    group = np.array([key.setdefault(tuple(np.round(v, 6)), len(key)) for v in verts])
+    normals = np.zeros((len(key), 3))
+    for f in faces:
+        n = np.cross(verts[f[1]] - verts[f[0]], verts[f[2]] - verts[f[0]])
+        for v in f:
+            normals[group[v]] += n
+    length = np.linalg.norm(normals, axis=1, keepdims=True)
+    return (normals / np.maximum(length, 1e-12))[group]
+
+
 def build(scene, base_verts, garment, name, parent=None):
     """Create the garment object on a given (morphed) body. Returns (object, binding)."""
     all_bl = human.to_blender(base_verts)
     _, uvs, all_faces, all_face_uvs = human.base_mesh()
     uv_of = {f: fu for f, fu in zip(all_faces, all_face_uvs)}
     faces, tri, weight, sources = _cut(garment)
+    sewing = []
+    nudge = None
+    if garment.get("panels"):
+        faces, tri, weight, nudge, sewing = _split_panels(faces, tri, weight, sources, garment["panels"])
     verts = (all_bl[tri] * weight[:, :, None]).sum(axis=1)
-    verts = verts + garment["ease"] * _vertex_normals(verts, faces)
+    # Normals are taken before panels are moved apart, so both copies of a seam vertex
+    # get the same push outward.
+    verts = verts + garment["ease"] * _vertex_normals_welded(verts, faces)
+    if nudge is not None:
+        verts = verts + nudge
 
     mesh = bpy.data.meshes.new(name)
-    mesh.from_pydata(verts.tolist(), [], faces)
+    mesh.from_pydata(verts.tolist(), sewing, faces)
     # UVs: a slid corner takes the UV part-way along the same edge, when that edge is in
     # this face; otherwise it keeps its own UV (a small stretch at the hem).
     flat = []
