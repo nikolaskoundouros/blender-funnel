@@ -384,6 +384,8 @@ def build_human(scene, name="Human", skin="young_caucasian_female", outfit=(), h
         for garment in generated:
             fitted.append(garments.build(scene, base_verts, garment, f"{name}_{garment['name']}",
                                          parent=body))
+            fitted.extend(garments.build_extras(scene, base_verts, garment, f"{name}_{garment['name']}",
+                                                parent=body))
 
     root = body
     if pose is not None:

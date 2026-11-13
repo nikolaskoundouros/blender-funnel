@@ -327,3 +327,61 @@ def matte_leather(name="Matte leather", color=(0.14, 0.10, 0.09), on="object", m
     links.new(vec, nap.inputs["Vector"])
     _bump(nodes, links, bsdf, nap.outputs["Factor"], strength=0.15, distance=0.0003)
     return mat
+
+
+def add_stitches(mat, inset=0.0045, stitch=0.0038, gap=0.0022, width=0.0012, rows=1,
+                 row_spacing=0.0055, color=None, depth=0.6):
+    """Topstitching along every open edge and seam of a garment built by garments.build.
+
+    Reads the mesh attributes edge_dist (distance to the nearest edge, metres) and
+    edge_along (position along that edge). A thread is drawn where the distance is
+    `inset` (plus `row_spacing` per extra row) and the position falls on a stitch rather
+    than a gap. All sizes in metres. The thread is coloured and slightly raised."""
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
+    dist = nodes.new("ShaderNodeAttribute"); dist.attribute_name = "edge_dist"
+    along = nodes.new("ShaderNodeAttribute"); along.attribute_name = "edge_along"
+
+    def math_node(op, a, b=None):
+        node = nodes.new("ShaderNodeMath"); node.operation = op
+        for i, value in enumerate((a, b)):
+            if value is None:
+                continue
+            if isinstance(value, (int, float)):
+                node.inputs[i].default_value = value
+            else:
+                links.new(value, node.inputs[i])
+        return node.outputs[0]
+
+    period = stitch + gap
+    phase = math_node("FRACT", math_node("DIVIDE", along.outputs["Fac"], period))
+    dash = math_node("LESS_THAN", phase, stitch / period)
+    band = None
+    for r in range(rows):
+        off = math_node("ABSOLUTE", math_node("SUBTRACT", dist.outputs["Fac"], inset + r * row_spacing))
+        line = math_node("SUBTRACT", 1.0, math_node("DIVIDE", off, width / 2.0))
+        line = math_node("MAXIMUM", line, 0.0)
+        band = line if band is None else math_node("MAXIMUM", band, line)
+    mask = math_node("MULTIPLY", band, dash)
+
+    base_link = next((l for l in links if l.to_socket == bsdf.inputs["Base Color"]), None)
+    thread = nodes.new("ShaderNodeMix"); thread.data_type = "RGBA"
+    links.new(mask, thread.inputs[0])
+    if base_link is not None:
+        links.new(base_link.from_socket, thread.inputs[6])
+    else:
+        thread.inputs[6].default_value = bsdf.inputs["Base Color"].default_value
+    if color is None:
+        b = bsdf.inputs["Base Color"].default_value
+        color = tuple(min(1.0, 0.08 + 1.6 * b[i]) for i in range(3))
+    thread.inputs[7].default_value = (*color, 1.0)
+    links.new(thread.outputs[2], bsdf.inputs["Base Color"])
+    normal_link = next((l for l in links if l.to_socket == bsdf.inputs["Normal"]), None)
+    bump = nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = depth
+    bump.inputs["Distance"].default_value = 0.0006
+    links.new(mask, bump.inputs["Height"])
+    if normal_link is not None:
+        links.new(normal_link.from_socket, bump.inputs["Normal"])
+    links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat

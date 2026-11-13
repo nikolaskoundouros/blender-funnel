@@ -23,6 +23,8 @@ those shells:
 
 Not done here: draping. These garments follow the body; they do not hang or fold.
 """
+import math
+
 import numpy as np
 
 import bpy
@@ -82,19 +84,36 @@ def _body_coordinates():
             value = np.where(on_lower, 1.0 + np.maximum(t2, 0.0), np.minimum(t1, 1.0))
             out[mask] = value[mask]
         coords[limb] = out
+    # Angle round the leg, in degrees: 0 at the front, +90 on the outside, for both legs.
+    theta = np.zeros(len(vb))
+    for sd, sign, mask in (("L", 1.0, left), ("R", -1.0, ~left)):
+        hip, knee, ankle = joint(f"upperleg01.{sd}"), joint(f"lowerleg01.{sd}"), joint(f"foot.{sd}")
+        for base, axis, rows in ((hip, knee - hip, mask & (coords["leg"] <= 1.0)),
+                                 (knee, ankle - knee, mask & (coords["leg"] > 1.0))):
+            a = axis / np.linalg.norm(axis)
+            r = vb[rows] - base
+            r -= np.outer(r @ a, a)
+            front = np.array([0.0, -1.0, 0.0]) - a * (-a[1])
+            out = np.array([sign, 0.0, 0.0]) - a * (sign * a[0])
+            front /= np.linalg.norm(front)
+            out /= np.linalg.norm(out)
+            theta[rows] = np.degrees(np.arctan2(r @ out, r @ front))
     z_hip, z_neck = joint("upperleg01.L")[2], joint("neck01")[2]
     zs = vb[SKIRT[0]:SKIRT[1] + 1, 2]
-    _COORDS = {"part": part, "vb": vb, "eye": joint("eye.L"),
+    _COORDS = {"part": part, "vb": vb, "eye": joint("eye.L"), "theta": theta, "left": left,
                "h": (vb[:, 2] - z_hip) / (z_neck - z_hip),
                "arm": coords["arm"], "leg": coords["leg"],
                "k": (zs.max() - vb[:, 2]) / (zs.max() - zs.min())}
     return _COORDS
 
 
-def _garment(name, shell, field, ease, thickness, material, skin_margin=0.07, soften=0):
-    covered = set(np.nonzero(field[:human.BODY_VERTS] > skin_margin)[0].tolist()) if skin_margin else set()
+def _garment(name, shell, field, ease, thickness, material, skin_margin=0.07, soften=0,
+             smooth_shell=0, snaps=()):
+    covered = (set(np.nonzero(field[:human.BODY_VERTS] > skin_margin)[0].tolist())
+               if skin_margin and field is not None else set())
     return {"name": name, "shell": shell, "field": field, "ease": ease, "thickness": thickness,
-            "material": material, "delete": covered, "soften": soften}
+            "material": material, "delete": covered, "soften": soften,
+            "smooth_shell": smooth_shell, "snaps": list(snaps)}
 
 
 # ------------------------------------------------------------------ catalogue
@@ -115,15 +134,164 @@ def top(name="top", sleeve=0.55, hem=-0.10, collar=0.96, ease=0.008, thickness=0
                     material or materials.fabric((0.85, 0.85, 0.82), on="garment"), soften=soften)
 
 
+def baggy_ease(outer=0.032, inner=0.008, waist=0.012, ankle=0.016):
+    """Per-vertex ease for loose trousers: roomy at the front and outside of the thigh,
+    close on the inner thigh (so the legs do not cut into each other), gathered at the
+    waistband and narrowing toward the ankle. Pass the same array, plus an offset, to
+    pockets so they lie on the trousers."""
+    c = _body_coordinates()
+    n = shell_surface(human.base_mesh()[0], 0)[1]
+    side = np.where(c["left"], 1.0, -1.0)
+    outward = np.clip(0.5 + 0.5 * (n[:, 0] * side) + 0.25 * (-n[:, 1]), 0.0, 1.0)
+    roomy = inner + (outer - inner) * outward
+    along = np.clip((c["leg"] - 0.2) / 1.6, 0.0, 1.0)            # 0 high on the thigh, 1 at the ankle
+    ease = roomy * (1.0 - along) + ankle * along
+    up = np.clip((c["h"] + 0.05) / 0.2, 0.0, 1.0)                # blend to the waistband above the hip
+    ease = np.where(c["part"] == "torso", waist + (ease - waist) * (1.0 - up), ease)
+    return ease
+
+
+_LEG_CHART = {}
+
+
+def _leg_chart(side_left):
+    """The tights shell on one leg as triangles in flat leg coordinates, in metres:
+    x = round the leg (0 at the front), y = down the leg. Used to wrap flat pieces on."""
+    if side_left in _LEG_CHART:
+        return _LEG_CHART[side_left]
+    c = _body_coordinates()
+    lo, hi = TIGHTS
+    flat = np.stack([np.radians(c["theta"]) * LEG_RADIUS, c["leg"] * LEG_LENGTH], axis=1)
+    tris = []
+    for f in human.base_mesh()[2]:
+        if not all(lo <= v <= hi for v in f):
+            continue
+        if not all(c["part"][v] in ("leg", "foot") and c["left"][v] == side_left for v in f):
+            continue
+        for t in ((f[0], f[1], f[2]), (f[0], f[2], f[3])) if len(f) == 4 else ((f[0], f[1], f[2]),):
+            th = c["theta"][list(t)]
+            if th.max() - th.min() < 180.0:          # skip triangles that wrap round the back seam
+                tris.append(t)
+    tris = np.array(tris)
+    _LEG_CHART[side_left] = (flat, tris)
+    return flat, tris
+
+
+LEG_RADIUS = 0.09     # metres per radian round the leg (about a mid-thigh radius)
+LEG_LENGTH = 0.42     # metres per unit of the leg coordinate (about a thigh length)
+
+
+def _rounded_rectangle(x0, x1, y0, y1, radius, step):
+    """Outline of a rectangle with rounded corners, as points about `step` apart."""
+    r = min(radius, (x1 - x0) / 2.0, (y1 - y0) / 2.0)
+    pts = []
+    corners = ((x1 - r, y0 + r, -90.0), (x1 - r, y1 - r, 0.0), (x0 + r, y1 - r, 90.0), (x0 + r, y0 + r, 180.0))
+    for (cx, cy, start), (nx, ny, _) in zip(corners, corners[1:] + corners[:1]):
+        arc = max(2, int(np.ceil(r * np.pi / 2.0 / step))) if r > 0 else 1
+        for k in range(arc + 1):
+            a = np.radians(start + 90.0 * k / arc)
+            pts.append((cx + r * np.cos(a), cy + r * np.sin(a)))
+        end = np.array(pts[-1])
+        nxt = np.array((nx + r * np.cos(np.radians(start + 90.0)), ny + r * np.sin(np.radians(start + 90.0))))
+        length = np.linalg.norm(nxt - end)
+        for k in range(1, max(1, int(length / step))):
+            pts.append(tuple(end + (nxt - end) * k / int(length / step)))
+    out = [pts[0]]
+    for p_ in pts[1:]:
+        if np.hypot(p_[0] - out[-1][0], p_[1] - out[-1][1]) > step * 0.3:
+            out.append(p_)
+    return np.array(out)
+
+
+def _inside_polygon(points, polygon):
+    """Even-odd test: which 2D points lie inside the polygon."""
+    x, y = points[:, 0], points[:, 1]
+    inside = np.zeros(len(points), dtype=bool)
+    for (x0, y0), (x1, y1) in zip(polygon, np.roll(polygon, -1, axis=0)):
+        inside ^= ((y0 > y) != (y1 > y)) & (x < (x1 - x0) * (y - y0) / (y1 - y0 + 1e-12) + x0)
+    return inside
+
+
+def _wrap(points, side_left):
+    """Bind flat leg-coordinate points to the shell: (tri, weight) per point."""
+    flat, tris = _leg_chart(side_left)
+    A, B, Cc = flat[tris[:, 0]], flat[tris[:, 1]], flat[tris[:, 2]]
+    v0, v1 = B - A, Cc - A
+    den = v0[:, 0] * v1[:, 1] - v1[:, 0] * v0[:, 1]
+    ok = np.abs(den) > 1e-10                     # a few leg triangles are flat in this chart
+    tris, A, v0, v1, den = tris[ok], A[ok], v0[ok], v1[ok], den[ok]
+    tri_out, w_out = [], []
+    for p_ in points:
+        d = p_ - A
+        u = (d[:, 0] * v1[:, 1] - v1[:, 0] * d[:, 1]) / den
+        v = (v0[:, 0] * d[:, 1] - d[:, 0] * v0[:, 1]) / den
+        worst = np.minimum.reduce([u, v, 1.0 - u - v])
+        best = int(np.argmax(worst))                 # containing triangle, or the nearest one
+        uu, vv = u[best], v[best]
+        w = np.clip(np.array([1.0 - uu - vv, uu, vv]), 0.0, None)
+        tri_out.append(tris[best])
+        w_out.append(w / w.sum())
+    return np.array(tri_out), np.array(w_out)
+
+
+def leg_patch(name, s=(0.18, 0.85), theta=(-35.0, 50.0), side="both", ease=0.012,
+              thickness=0.0022, material=None, smooth_shell=0, snaps=(), corner=0.012,
+              step=0.008):
+    """A flat piece lying on the leg: a patch pocket, a pocket flap, a reinforcement.
+
+    Drawn as an exact rounded rectangle in flat leg coordinates and wrapped onto the leg,
+    so its edges are straight and its corners clean at any body shape. (The first version
+    cut it from the body mesh, whose 2.7 cm squares gave wavy edges and notched corners.)
+
+    s: from-to along the leg (0 hip, 1 knee, 2 ankle). theta: from-to round the leg in
+    degrees (0 front, 90 outside). side: "L", "R" or "both". Give it the trousers' ease
+    plus a few millimetres so it sits on top. snaps: list of (s, theta) for press-studs.
+    corner: corner radius in metres. step: mesh spacing in metres.
+    """
+    from mathutils import geometry as geo
+    outline = _rounded_rectangle(np.radians(theta[0]) * LEG_RADIUS, np.radians(theta[1]) * LEG_RADIUS,
+                                 s[0] * LEG_LENGTH, s[1] * LEG_LENGTH, corner, step)
+    lo, hi = outline.min(axis=0), outline.max(axis=0)
+    gx = np.arange(lo[0] + step, hi[0] - step * 0.5, step)
+    gy = np.arange(lo[1] + step, hi[1] - step * 0.5, step * 0.866)
+    grid = np.array([(x + (step * 0.5 if j % 2 else 0.0), y) for j, y in enumerate(gy) for x in gx])
+    inside = _inside_polygon(grid, outline) if len(grid) else []
+    keep = grid[inside] if len(grid) else np.zeros((0, 2))
+    keep = keep[[np.min(np.linalg.norm(outline - k, axis=1)) > step * 0.55 for k in keep]] if len(keep) else keep
+    points = np.concatenate([outline, keep])
+    n = len(outline)
+    out_v, _, out_f, orig, _, _ = geo.delaunay_2d_cdt([tuple(q) for q in points],
+                                                     [(i, (i + 1) % n) for i in range(n)], [], 1, 1e-7)
+    out_v = np.array([tuple(v) for v in out_v])
+    faces = [tuple(f) for f in out_f if len(f) == 3]
+    pieces = []
+    for side_left in {"L": (True,), "R": (False,), "both": (True, False)}[side]:
+        tri, weight = _wrap(out_v, side_left)
+        f = faces if side_left else [tuple(reversed(t)) for t in faces]   # keep normals outward
+        pieces.append((f, tri, weight, out_v))
+    faces_all, tri_all, w_all, uv_all, base = [], [], [], [], 0
+    for f, tri, weight, uv in pieces:
+        faces_all += [tuple(base + i for i in t) for t in f]
+        tri_all.append(tri); w_all.append(weight); uv_all.append(uv / materials.METRES_PER_UV)
+        base += len(uv)
+    spec = _garment(name, TIGHTS, None, ease, thickness,
+                    material or materials.fabric((0.05, 0.06, 0.09), on="garment"),
+                    skin_margin=None, smooth_shell=smooth_shell, snaps=snaps)
+    spec["explicit"] = {"faces": faces_all, "tri": np.concatenate(tri_all),
+                        "weight": np.concatenate(w_all), "uv": np.concatenate(uv_all)}
+    return spec
+
+
 def trousers(name="trousers", length=1.93, waist=0.20, ease=0.008, thickness=0.003,
-             material=None):
+             material=None, smooth_shell=0):
     """length: 0.5 shorts, 1.0 knee, 1.93 ankle. waist: waistband height above the hip
     joint as a fraction of hip-to-neck."""
     c = _body_coordinates()
     field = waist - c["h"]
     field = np.where(np.isin(c["part"], ("leg", "foot")), np.minimum(field, length - c["leg"]), field)
     field = np.where(np.isin(c["part"], ("arm", "hand")), -FAR, field)
-    return _garment(name, TIGHTS, field, ease, thickness, material or materials.denim())
+    return _garment(name, TIGHTS, field, ease, thickness, material or materials.denim(),
+                    smooth_shell=smooth_shell)
 
 
 def boots(name="boots", top_at=1.55, ease=0.007, thickness=0.004, material=None):
@@ -287,6 +455,108 @@ def _split_panels(faces, tri, weight, sources, spec):
     return new_faces, np.array(new_tri, dtype=int), np.array(new_weight), np.array(nudge), sew
 
 
+_SURFACES = {}
+
+
+def shell_surface(base_verts, iterations):
+    """Positions and normals of the whole tights shell (Blender coordinates), optionally
+    smoothed so muscle definition does not show through loose garments. Every garment
+    cut from the shell with the same setting lies on the same surface, so pockets sit
+    exactly on trousers. Taubin smoothing: alternating shrink and inflate steps keep the
+    size from collapsing the way plain averaging would."""
+    key = (iterations, base_verts.shape, float(base_verts[::211].sum()))
+    if key in _SURFACES:
+        return _SURFACES[key]
+    pos = human.to_blender(base_verts).copy()
+    lo, hi = TIGHTS
+    faces = [f for f in human.base_mesh()[2] if all(lo <= v <= hi for v in f)]
+    edges = {(min(a, b), max(a, b)) for f in faces for a, b in zip(f, f[1:] + f[:1])}
+    e = np.array(sorted(edges))
+    degree = np.zeros(len(pos))
+    np.add.at(degree, e[:, 0], 1.0)
+    np.add.at(degree, e[:, 1], 1.0)
+    shell = degree > 0
+    for k in range(2 * iterations):
+        mean = np.zeros_like(pos)
+        np.add.at(mean, e[:, 0], pos[e[:, 1]])
+        np.add.at(mean, e[:, 1], pos[e[:, 0]])
+        step = 0.5 if k % 2 == 0 else -0.53
+        pos[shell] += step * (mean[shell] / degree[shell, None] - pos[shell])
+    if iterations:
+        # Loose garments bridge the crotch with fabric instead of following the body into
+        # it. Extra averaging there flattens the creases a tight shell would show. (Taubin
+        # smoothing alone left them: the creases are larger than its reach.)
+        c = _body_coordinates()
+        zone = np.zeros(len(pos))
+        low = np.clip((0.10 - c["h"]) / 0.15, 0.0, 1.0)
+        zone[c["part"] == "torso"] = low[c["part"] == "torso"]
+        inner_leg = (c["part"] == "leg") & (np.abs(c["theta"]) > 95.0)
+        zone[inner_leg] = np.maximum(zone[inner_leg], np.clip((0.25 - c["leg"][inner_leg]) / 0.25, 0.0, 1.0))
+        zone = np.where(shell, zone, 0.0)[:, None] * 0.5
+        for _ in range(4 * iterations):
+            mean = np.zeros_like(pos)
+            np.add.at(mean, e[:, 0], pos[e[:, 1]])
+            np.add.at(mean, e[:, 1], pos[e[:, 0]])
+            pos[shell] += zone[shell] * (mean[shell] / degree[shell, None] - pos[shell])
+    normals = np.zeros_like(pos)
+    for f in faces:
+        n = np.cross(pos[f[1]] - pos[f[0]], pos[f[2]] - pos[f[0]])
+        for v in f:
+            normals[v] += n
+    normals /= np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-12)
+    _SURFACES[key] = (pos, normals)
+    return pos, normals
+
+
+def edge_attributes(verts, faces):
+    """Per vertex: distance to the nearest open edge of the mesh (hems, pocket edges and,
+    on garments cut into panels, seams) and how far along that edge it is. Stored on the
+    mesh so stitching can be drawn by the material; both survive cloth simulation,
+    thickness and smoothing because Blender carries mesh attributes through modifiers."""
+    count = {}
+    for f in faces:
+        for a, b in zip(f, f[1:] + f[:1]):
+            key = (min(a, b), max(a, b))
+            count[key] = count.get(key, 0) + 1
+    boundary = [k for k, c in count.items() if c == 1]
+    if not boundary:
+        return np.full(len(verts), 1.0), np.zeros(len(verts))
+    nbr = {}
+    for a, b in boundary:
+        nbr.setdefault(a, []).append(b)
+        nbr.setdefault(b, []).append(a)
+    used, seg_a, seg_b, seg_start = set(), [], [], []
+    for a0, b0 in boundary:
+        if (a0, b0) in used:
+            continue
+        along, prev, cur = 0.0, a0, b0
+        used.add((a0, b0))
+        seg_a.append(a0); seg_b.append(b0); seg_start.append(along)
+        along += float(np.linalg.norm(verts[b0] - verts[a0]))
+        while True:
+            nxt = next((n for n in nbr[cur] if n != prev and (min(cur, n), max(cur, n)) not in used), None)
+            if nxt is None:
+                break
+            used.add((min(cur, nxt), max(cur, nxt)))
+            seg_a.append(cur); seg_b.append(nxt); seg_start.append(along)
+            along += float(np.linalg.norm(verts[nxt] - verts[cur]))
+            prev, cur = cur, nxt
+    A, B = verts[np.array(seg_a)], verts[np.array(seg_b)]
+    start = np.array(seg_start)
+    dist = np.empty(len(verts))
+    pos = np.empty(len(verts))
+    for lo in range(0, len(verts), 512):
+        P = verts[lo:lo + 512, None, :]
+        d = B - A
+        t = np.clip(((P - A) * d).sum(-1) / np.maximum((d * d).sum(-1), 1e-12), 0.0, 1.0)
+        gap = np.linalg.norm(P - (A + t[..., None] * d), axis=-1)
+        best = gap.argmin(axis=1)
+        rows = np.arange(len(best))
+        dist[lo:lo + 512] = gap[rows, best]
+        pos[lo:lo + 512] = start[best] + t[rows, best] * np.linalg.norm(d[best], axis=-1)
+    return dist, pos
+
+
 def _vertex_normals(verts, faces):
     normals = np.zeros_like(verts)
     for f in faces:
@@ -315,15 +585,31 @@ def build(scene, base_verts, garment, name, parent=None):
     all_bl = human.to_blender(base_verts)
     _, uvs, all_faces, all_face_uvs = human.base_mesh()
     uv_of = {f: fu for f, fu in zip(all_faces, all_face_uvs)}
-    faces, tri, weight, sources = _cut(garment)
+    explicit = garment.get("explicit")
+    if explicit:
+        faces, tri, weight, sources = explicit["faces"], explicit["tri"], explicit["weight"], None
+    else:
+        faces, tri, weight, sources = _cut(garment)
     sewing = []
     nudge = None
     if garment.get("panels"):
         faces, tri, weight, nudge, sewing = _split_panels(faces, tri, weight, sources, garment["panels"])
-    verts = (all_bl[tri] * weight[:, :, None]).sum(axis=1)
-    # Normals are taken before panels are moved apart, so both copies of a seam vertex
-    # get the same push outward.
-    verts = verts + garment["ease"] * _vertex_normals_welded(verts, faces)
+    ease = garment["ease"]
+    if not np.isscalar(ease):                     # per-base-vertex ease (e.g. baggy_ease)
+        ease = (np.asarray(ease)[tri] * weight).sum(axis=1)[:, None]
+    if tuple(garment["shell"]) == TIGHTS:
+        # Garments on the tights shell take position and normal from the (optionally
+        # smoothed) whole shell, so separate pieces line up exactly.
+        surf, normals = shell_surface(base_verts, garment.get("smooth_shell", 0))
+        verts = (surf[tri] * weight[:, :, None]).sum(axis=1)
+        n = (normals[tri] * weight[:, :, None]).sum(axis=1)
+        n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
+    else:
+        verts = (all_bl[tri] * weight[:, :, None]).sum(axis=1)
+        # Normals are taken before panels are moved apart, so both copies of a seam
+        # vertex get the same push outward.
+        n = _vertex_normals_welded(verts, faces)
+    verts = verts + ease * n
     if nudge is not None:
         verts = verts + nudge
 
@@ -332,7 +618,9 @@ def build(scene, base_verts, garment, name, parent=None):
     # UVs: a slid corner takes the UV part-way along the same edge, when that edge is in
     # this face; otherwise it keeps its own UV (a small stretch at the hem).
     flat = []
-    for face, src in zip(faces, sources):
+    if explicit:
+        flat = [c for face in faces for v in face for c in explicit["uv"][v]]
+    for face, src in zip(faces, sources or []):
         for corner, (gv, bv) in enumerate(zip(face, src)):
             uv = uvs[uv_of[src][corner]]
             w0 = tri[gv][0]
@@ -341,6 +629,9 @@ def build(scene, base_verts, garment, name, parent=None):
                 uv = uv_in + weight[gv][1] * (uv - uv_in)
             flat.extend(uv)
     mesh.uv_layers.new(name="UVMap").data.foreach_set("uv", np.array(flat))
+    dist, along = edge_attributes(verts, faces)
+    mesh.attributes.new("edge_dist", "FLOAT", "POINT").data.foreach_set("value", dist.astype(np.float32))
+    mesh.attributes.new("edge_along", "FLOAT", "POINT").data.foreach_set("value", along.astype(np.float32))
     mesh.update()
     mesh.shade_smooth()
     obj = bpy.data.objects.new(name, mesh)
@@ -357,4 +648,62 @@ def build(scene, base_verts, garment, name, parent=None):
     smooth.levels, smooth.render_levels = 1, 2
     if parent is not None:
         obj.parent = parent
-    return obj, {"tri": tri, "weight": weight, "delete": garment["delete"]}
+    return obj, {"tri": tri, "weight": weight, "delete": garment["delete"],
+                 "rest": verts, "normals": n}
+
+
+def build_extras(scene, base_verts, garment, name, parent=None):
+    """Hardware that belongs to a garment: press-studs at the (s, theta) places listed in
+    garment["snaps"], on every leg the garment covers. Each stud is bound to the nearest
+    garment vertex, so it bends with the leg like the cloth it sits on."""
+    if not garment.get("snaps"):
+        return []
+    import bmesh
+    c = _body_coordinates()
+    if garment.get("explicit"):
+        tri, weight = garment["explicit"]["tri"], garment["explicit"]["weight"]
+    else:
+        _, tri, weight, _ = _cut(garment)
+    s_v = (c["leg"][tri] * weight).sum(axis=1)
+    t_v = (c["theta"][tri] * weight).sum(axis=1)
+    left_v = c["left"][tri[:, 0]]
+    surf, normals = shell_surface(base_verts, garment.get("smooth_shell", 0))
+    ease = garment["ease"]
+    ease_v = (np.asarray(ease)[tri] * weight).sum(axis=1) if not np.isscalar(ease) else np.full(len(tri), ease)
+    pos = (surf[tri] * weight[:, :, None]).sum(axis=1)
+    nrm = (normals[tri] * weight[:, :, None]).sum(axis=1)
+    nrm /= np.maximum(np.linalg.norm(nrm, axis=1, keepdims=True), 1e-12)
+    metal = materials.metal("Press-stud", (0.30, 0.27, 0.22), 0.35)
+    made = []
+    for side in (True, False):
+        rows = np.nonzero(left_v == side)[0]
+        if not len(rows):
+            continue
+        for k, (s_at, t_at) in enumerate(garment["snaps"]):
+            gap = np.hypot((s_v[rows] - s_at) * 0.42, np.radians(t_v[rows] - t_at) * 0.09)
+            near = rows[np.argsort(gap)[:4]]
+            w = 1.0 / np.maximum(np.sort(gap)[:4], 1e-4)
+            w /= w.sum()
+            p = (pos[near] * w[:, None]).sum(axis=0)
+            n = (nrm[near] * w[:, None]).sum(axis=0)
+            n /= np.linalg.norm(n)
+            centre = p + n * ((ease_v[near] * w).sum() + garment["thickness"] + 0.0012)
+            bm = bmesh.new()
+            bmesh.ops.create_uvsphere(bm, u_segments=20, v_segments=10, radius=0.0062)
+            for v in bm.verts:                       # flatten into a dome along the normal
+                local = np.array(v.co)
+                v.co = tuple(centre + local - n * (local @ n) * 0.62)
+            mesh = bpy.data.meshes.new(f"{name}_stud{k}")
+            bm.to_mesh(mesh)
+            bm.free()
+            mesh.shade_smooth()
+            mesh.materials.append(metal)
+            obj = bpy.data.objects.new(mesh.name, mesh)
+            scene.collection.objects.link(obj)
+            if parent is not None:
+                obj.parent = parent
+            nearest = near[0]
+            count = len(mesh.vertices)
+            made.append((obj, {"tri": np.tile(tri[nearest], (count, 1)),
+                               "weight": np.tile(weight[nearest], (count, 1)), "delete": set()}))
+    return made
