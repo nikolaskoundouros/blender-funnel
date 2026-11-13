@@ -221,3 +221,22 @@ pitch 0.038 per turn, volume 0.028, lock spread 0.006, 280 guides, 100,000 child
 | Bare parting at the front | Crown point further back (0.13 behind the face), hairline lower (0.042 above the eyes) |
 | Mop too wide, sides hang a whole eye-spacing below the eyes (owner: "a bit shorter") | Length 0.08 to 0.065, side factor 0.45 to 0.32, volume 0.035 to 0.028. Measure in eye-spacings against the reference |
 | Fringe over one eye vs fringe too high | `fringe_cut` 0.25 (0.45 showed the hairline) |
+
+## Skin detail and eyes (run 012, steps 7 to 10)
+
+`skin.freckle_image(base_verts)` paints freckles into the skin's UV layout, placed in 3D from
+face landmarks (band over nose and upper cheeks, light sprinkle on the rest of the face), so
+they stay put under posing. `skin.add_detail(mat, freckles, tone, pores)` multiplies them and a
+tone into the skin texture and adds a pore bump. `skin.two_eye_colours(eyes, right, left)` for
+heterochromia (right = character's right, x < 0).
+
+Match skin by measuring: median colour of the lit half of a cheek and forehead patch, as
+fractions of R+G+B, ours against the reference. Reference 0.428 / 0.328 / 0.245.
+
+| Symptom | Fix |
+|---|---|
+| Freckles big, dark, everywhere (1,400, amount 0.75) | 1,000 at amount 0.6 |
+| Skin too red under sun (0.448 red) | Lighting first: soft warm three-point at 2 m, key 40 W. Then tone multiply |
+| Skin too cool under studio lights (0.383 red, 0.288 blue) | Tone (1.0, 0.93, 0.70) gave 0.403 / 0.329 / 0.269 |
+| Blue eye reads dark teal | `lightblue` eye material |
+| Swept lock hangs like a stick (sweep 0.6) | sweep 0.35 |

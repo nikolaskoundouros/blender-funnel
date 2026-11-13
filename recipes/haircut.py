@@ -80,7 +80,8 @@ def short_back_and_sides(scalp, points, top_length=0.065, side_length=0.006, bac
     return density, length, comb, grey
 
 
-def curly_mop(scalp, points, length=0.11, side=0.45, fringe_cut=0.25, crown=(0.0, 0.13, 0.115)):
+def curly_mop(scalp, points, length=0.11, side=0.45, fringe_cut=0.25, crown=(0.0, 0.13, 0.115),
+              sweep=0.0, sweep_side=-1.0):
     """Scalp map for a full head of curls: hair everywhere above a low hairline, falling
     outward and down from the crown like a mop, with a fringe over the forehead.
     `crown` is the parting centre relative to (centre x, front of face, eye height)."""
@@ -98,6 +99,9 @@ def curly_mop(scalp, points, length=0.11, side=0.45, fringe_cut=0.25, crown=(0.0
     length = np.full(len(points), length) * (side + (1.0 - side) * _sigmoid(h - 0.05, 0.012))
     # the fringe stops at the brows (step 3 hung over one eye)
     length *= 1.0 - fringe_cut * w_face * _sigmoid(0.10 - h, 0.01)
+    # a longer lock falling over one eye (sweep_side -1: the character's right, x < 0)
+    over = w_face * _sigmoid(sweep_side * points[:, 0] - 0.005, 0.012) * _sigmoid(0.11 - h, 0.012)
+    length *= 1.0 + sweep * over
     c = np.array([crown[0], scalp.lm["front_y"] + crown[1], scalp.eye_z + crown[2]])
     comb = points - c
     comb[:, 2] = np.minimum(comb[:, 2], 0.0) - 0.02          # out from the crown and down

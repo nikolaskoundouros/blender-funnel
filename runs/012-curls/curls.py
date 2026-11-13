@@ -16,7 +16,7 @@ from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))
-from recipes import accessories, camera, color, garments, haircut, human, materials, render, stage, world  # noqa: E402
+from recipes import accessories, camera, color, garments, haircut, human, materials, render, skin, stage, world  # noqa: E402
 
 W, H, SAMPLES = (int(a) for a in sys.argv[1:4]) if len(sys.argv) > 3 else (360, 360, 32)
 SLIDERS = dict(gender=1.0, age=0.22, muscle=0.5, weight=0.45, height=0.45, caucasian=1, african=0, asian=0)
@@ -29,12 +29,24 @@ boy = human.build_human(scene, name="Boy", skin="young_caucasian_male", hair=Non
                                              material=materials.fabric((0.72, 0.70, 0.64), on="garment")),),
                         **SLIDERS)
 materials.soften_skin(boy.data.materials[0])
+# Reference: one blue eye (his right, under the fringe) and one green eye (his left).
+eyes_obj = next(c for c in boy.children if c.name == "Boy_low-poly")
+eye_mat = lambda colour: human.material_from_mhmat(f"{human.PACK}/eyes/materials/{colour}.mhmat", f"eye_{colour}")
+skin.two_eye_colours(eyes_obj, eye_mat(os.environ.get("EYE_R", "lightblue")), eye_mat(os.environ.get("EYE_L", "green")))
+if env("FRECKLES", 1):
+    freckles, finfo = skin.freckle_image(base_verts, count=env("FRECKLE_COUNT", 1000))
+    print("FRECKLES " + json.dumps(finfo))
+else:
+    freckles = None
+skin.add_detail(boy.data.materials[0], freckles=freckles, freckle_amount=env("FRECKLE_AMOUNT", 0.6),
+                tone=tuple(float(c) for c in os.environ.get("TONE", "1.0,0.93,0.70").split(",")),
+                pores=env("PORES", 0.04))
 
 
 def curl_material():
     mat = haircut.material("Curls", melanin=env("MELANIN", 0.25), white=0.0, redness=env("REDNESS", 1.0),
                            roughness=env("ROUGH", 0.35))
-    rgb = os.environ.get("COLOR", "0.8,0.12,0.05")   # coral; melanin mode came out golden
+    rgb = os.environ.get("COLOR", "0.85,0.11,0.03")   # coral; melanin mode came out golden
     if rgb:
         hair = next(n for n in mat.node_tree.nodes if n.type == "BSDF_HAIR_PRINCIPLED")
         hair.parametrization = "COLOR"
@@ -44,26 +56,37 @@ def curl_material():
 
 obj, info = haircut.curls(
     scene, base_verts, guides=env("GUIDES", 280), children=env("CHILDREN", 100000), mat=curl_material(), parent=boy,
-    style=lambda sc, p: haircut.curly_mop(sc, p, length=env("LENGTH", 0.065), side=env("SIDE", 0.32)),
+    style=lambda sc, p: haircut.curly_mop(sc, p, length=env("LENGTH", 0.065), side=env("SIDE", 0.32),
+                                           fringe_cut=env("FRINGE_CUT", 0.25), sweep=env("SWEEP", 0.35)),
     grow_args=dict(coil_radius=env("COIL", 0.0095), coil_pitch=env("PITCH", 0.038), volume=env("VOLUME", 0.028)),
     child_args=dict(spread=env("SPREAD", 0.006)))
 print("HAIR " + json.dumps(info))
 
 lm = accessories.face_landmarks(base_verts)
-world.sky_world(scene, sun_elevation_deg=40.0, sun_rotation_deg=220.0, strength=0.035)
+if os.environ.get("LIGHT", "studio") == "studio":
+    # soft warm indoor light like the reference (a museum hall), instead of hard sun
+    from recipes import lighting  # noqa: E402
+    world.sky_world(scene, sun_elevation_deg=40.0, sun_rotation_deg=220.0, strength=0.004)
+    target = stage.empty_at(scene, "Head", (0.0, lm["front_y"] + 0.09, lm["eye_z"]))
+    lighting.three_point(scene, target, (-0.2, -2.0, lm["eye_z"]), key_power=env("KEY", 40.0), fill_ratio=0.35,
+                         rim_ratio=1.2, distance=2.0, key_size=1.2)
+else:
+    world.sky_world(scene, sun_elevation_deg=40.0, sun_rotation_deg=220.0, strength=0.035)
 scene.cycles_curves.shape = "THICK"
 color.set_view(scene, "AgX", look="Medium High Contrast")
 render.cycles_cpu(scene, width=W, height=H, samples=SAMPLES)
 aim = stage.empty_at(scene, "Aim", (0.0, lm["front_y"] + 0.09, lm["eye_z"] + 0.03))
 views = {"front": (-0.12, -0.80, lm["eye_z"] + 0.02), "side": (0.80, -0.05, lm["eye_z"] + 0.10),
          "back": (0.25, 0.95, lm["eye_z"] + 0.20),
-         "low": (-0.10, -0.55, lm["eye_z"] - 0.22)}   # looking up, like the reference close-up
+         "low": (-0.10, -0.55, lm["eye_z"] - 0.22),
+         "face": (-0.03, -0.42, lm["eye_z"] - 0.10)}   # close-up like the reference at 24 s   # looking up, like the reference close-up
 names = os.environ.get("VIEWS", "front,side,back").split(",")
 tiles = []
 started = time.time()
 for label in names:
     for o in [o for o in scene.objects if o.type == "CAMERA"]:
         bpy.data.objects.remove(o, do_unlink=True)
+    aim.location = (0.0, lm["front_y"] + (0.05 if label == "face" else 0.09), lm["eye_z"] + (-0.01 if label == "face" else 0.03))
     camera.camera_at(scene, views[label], aim, lens=85.0)
     path = os.path.join(HERE, f"curls_{label}.png")
     render.render_to(scene, path)
