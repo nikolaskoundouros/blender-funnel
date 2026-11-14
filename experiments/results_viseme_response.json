@@ -1,0 +1,114 @@
+{
+ "real_lip_gap_p95": 0.136,
+ "visemes": {
+  "rest": {
+   "lip_gap": 0.0068,
+   "mouth_width": 0.3595
+  },
+  "aa_ah_ax_01": {
+   "lip_gap": 0.0503,
+   "mouth_width": 0.3578,
+   "ceiling": 1.0
+  },
+  "aa_02": {
+   "lip_gap": 0.1473,
+   "mouth_width": 0.3337,
+   "ceiling": 0.92
+  },
+  "ao_03": {
+   "lip_gap": 0.0561,
+   "mouth_width": 0.3326,
+   "ceiling": 1.0
+  },
+  "ey_eh_uh_04": {
+   "lip_gap": 0.0549,
+   "mouth_width": 0.3234,
+   "ceiling": 1.0
+  },
+  "er_05": {
+   "lip_gap": 0.0871,
+   "mouth_width": 0.3421,
+   "ceiling": 1.0
+  },
+  "y_iy_ih_ix_06": {
+   "lip_gap": 0.0356,
+   "mouth_width": 0.3891,
+   "ceiling": 1.0
+  },
+  "w_uw_07": {
+   "lip_gap": 0.0443,
+   "mouth_width": 0.322,
+   "ceiling": 1.0
+  },
+  "ow_08": {
+   "lip_gap": 0.0259,
+   "mouth_width": 0.2665,
+   "ceiling": 1.0
+  },
+  "aw_09": {
+   "lip_gap": 0.0982,
+   "mouth_width": 0.3268,
+   "ceiling": 1.0
+  },
+  "oy_10": {
+   "lip_gap": 0.051,
+   "mouth_width": 0.2957,
+   "ceiling": 1.0
+  },
+  "ay_11": {
+   "lip_gap": 0.0538,
+   "mouth_width": 0.3463,
+   "ceiling": 1.0
+  },
+  "h_12": {
+   "lip_gap": 0.0893,
+   "mouth_width": 0.3533,
+   "ceiling": 1.0
+  },
+  "r_13": {
+   "lip_gap": 0.0506,
+   "mouth_width": 0.3623,
+   "ceiling": 1.0
+  },
+  "l_14": {
+   "lip_gap": 0.0643,
+   "mouth_width": 0.3583,
+   "ceiling": 1.0
+  },
+  "s_z_15": {
+   "lip_gap": 0.0613,
+   "mouth_width": 0.3538,
+   "ceiling": 1.0
+  },
+  "sh_ch_jh_zh_16": {
+   "lip_gap": 0.0686,
+   "mouth_width": 0.3252,
+   "ceiling": 1.0
+  },
+  "th_dh_17": {
+   "lip_gap": 0.045,
+   "mouth_width": 0.3536,
+   "ceiling": 1.0
+  },
+  "f_v_18": {
+   "lip_gap": 0.042,
+   "mouth_width": 0.3778,
+   "ceiling": 1.0
+  },
+  "d_t_n_19": {
+   "lip_gap": 0.0543,
+   "mouth_width": 0.3595,
+   "ceiling": 1.0
+  },
+  "k_g_ng_20": {
+   "lip_gap": 0.0526,
+   "mouth_width": 0.3559,
+   "ceiling": 1.0
+  },
+  "p_b_m_21": {
+   "lip_gap": 0.0087,
+   "mouth_width": 0.3543,
+   "ceiling": 1.0
+  }
+ }
+}

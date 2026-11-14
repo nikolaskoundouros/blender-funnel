@@ -13,7 +13,8 @@ with the words, their times and phonemes.
 Method (notes/voice-lipsync.md): Whisper word timestamps; each word's CMUdict phonemes
 share its span (vowels count double); each phoneme is a raised-cosine bump on its viseme,
 widened by 50% either side so neighbours overlap (coarticulation); per frame each viseme
-takes the strongest bump; everything is scaled by the loudness envelope (RMS, 50 ms).
+takes the strongest bump, weighted by how visible it is on real lips (VISIBILITY); weights
+are blended to sum at most 1, smoothed (Gaussian, 40 ms) and scaled by loudness (RMS, 50 ms).
 """
 import argparse
 import csv
@@ -38,6 +39,11 @@ PHONE_TO_VISEME = {
     "TH": "th_dh_17", "DH": "th_dh_17", "F": "f_v_18", "V": "f_v_18", "D": "d_t_n_19", "T": "d_t_n_19",
     "N": "d_t_n_19", "K": "k_g_ng_20", "G": "k_g_ng_20", "NG": "k_g_ng_20", "P": "p_b_m_21",
     "B": "p_b_m_21", "M": "p_b_m_21"}
+# How visible each viseme is on real lips (animation practice: tongue and throat consonants
+# barely move the lips, so they should not each get a full mouth shape). Run 019 C_final with
+# all at 1: mouth-width jitter above 6 Hz 8% vs 1% on the real speaker.
+VISIBILITY = {"h_12": 0.2, "d_t_n_19": 0.3, "k_g_ng_20": 0.3, "l_14": 0.4, "y_iy_ih_ix_06": 0.6,
+              "r_13": 0.5, "s_z_15": 0.5, "th_dh_17": 0.6, "sh_ch_jh_zh_16": 0.8}
 VOWELS = {"AA", "AE", "AH", "AO", "AW", "AY", "EH", "ER", "EY", "IH", "IY", "OW", "OY", "UH", "UW"}
 # Rough spelling fallback for words missing from CMUdict.
 LETTERS = {"a": "AE", "b": "B", "c": "K", "d": "D", "e": "EH", "f": "F", "g": "G", "h": "HH", "i": "IH",
@@ -141,6 +147,7 @@ def main():
     ap.add_argument("--start", type=float, default=0.0)
     ap.add_argument("--duration", type=float, default=None)
     ap.add_argument("--spread", type=float, default=0.5, help="bump widening either side, fraction of the phoneme")
+    ap.add_argument("--smooth-ms", type=float, default=40.0, help="Gaussian sigma of the viseme smoothing (0 = off)")
     ap.add_argument("--script", default="", help="text file with the words spoken (e.g. the ElevenLabs script): steers Whisper's spelling")
     a = ap.parse_args()
     from faster_whisper import WhisperModel
@@ -171,6 +178,23 @@ def main():
         half = max(half, 0.75 / a.fps)                 # at least visible for a frame and a half
         bump = np.clip(np.cos(np.clip((t - mid) / half, -1, 1) * np.pi / 2), 0, None) ** 2
         curves[vis] = np.maximum(curves[vis], bump)
+    # Visibility, then blend (weights share at most 1 per frame, so shapes cannot stack into
+    # a grimace), then zero-phase Gaussian smoothing (lips do not change shape faster than
+    # about 6 Hz); p/b/m keep their peaks so the lips still meet.
+    for v in VISEMES:
+        curves[v] *= VISIBILITY.get(v, 1.0)
+    total = sum(curves.values())
+    norm = np.maximum(total, 1.0)
+    for v in VISEMES:
+        curves[v] = curves[v] / norm
+    if a.smooth_ms > 0:
+        sigma = a.smooth_ms / 1000 * a.fps
+        k = np.exp(-0.5 * (np.arange(-int(3 * sigma) - 1, int(3 * sigma) + 2) / sigma) ** 2)
+        k /= k.sum()
+        for v in VISEMES:
+            raw = curves[v]
+            sm = np.convolve(raw, k, "same")
+            curves[v] = np.maximum(sm, 0.8 * raw) if v == "p_b_m_21" else sm
     loud = loudness(samples, rate, a.fps, n)
     scale = 0.4 + 0.6 * loud                           # quieter speech, smaller shapes
     with open(a.out, "w", newline="") as fh:

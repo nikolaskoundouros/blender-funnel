@@ -353,7 +353,7 @@ def add_item(scene, base_verts, kind, name, material_path=None, parent=None):
 
 
 def build_human(scene, name="Human", skin="young_caucasian_female", outfit=(), hair=None,
-                eyes="brown", eyebrows="eyebrow001", eyelashes="eyelashes01", teeth=True,
+                eyes="brown", eyebrows="eyebrow001", eyelashes="eyelashes01", teeth=True, tongue=True,
                 location=(0.0, 0.0, 0.0), facing_deg=0.0, pose=None, rig_name="default",
                 collider=False, expression=None, sculpt=None, **sliders):
     """A complete standing character: body, skin, face details, hair and outfit.
@@ -387,6 +387,10 @@ def build_human(scene, name="Human", skin="young_caucasian_female", outfit=(), h
         pending.append(("eyelashes", eyelashes, None))
     if teeth:
         pending.append(("teeth", "teeth_base", None))
+    if tongue:
+        # MakeHuman tongue01 (CC0 system assets). Without it an open mouth showed a black
+        # void behind the teeth (runs/019-voice-lipsync, 14 Nov 2026).
+        pending.append(("tongue", "tongue01", None))
 
     # Body: only body faces, minus any face fully covered by an item.
     items = [(k, n, m, read_mhclo(find_asset(k, n))) for k, n, m in pending]

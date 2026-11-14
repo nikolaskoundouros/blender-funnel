@@ -14,8 +14,21 @@ compares mouth opening at p/b/m centres and at open-vowel centres.
 
 `C_final/side_by_side.mp4`: real speaker and ours with the audio.
 
+## Owner feedback: "really quick and looks a bit distorted"
+
+| Run | Segment | Change | jitter >6 Hz lip / width (real) | range lip / width (real) |
+|---|---|---|---|---|
+| C_final | C | as above | 13% / 8% (2% / 1%) | 0.090 / 0.071 (0.116 / 0.064) |
+| A_blend | A | visibility, blend, 40 ms smoothing, gain 1 | 2.1% / 1.4% (2% / 1.7%) | 0.048 / 0.018 (0.126 / 0.075) |
+| A_g3 | A | plain gain 3 | 3.8% / 1.2% | 0.117 / 0.065: right numbers, distorted vowels |
+| A_soft_fill | A | tanh gain 3.5, jaw yields to vowels | 2.4% / 0.6% | 0.059 / 0.057 |
+| D_final | D (held out) | + tongue, head, blinks | 1.8% / 1.2% (1.2% / 1.1%) | 0.064 / 0.053 (0.136 / 0.119) |
+
+`before_after_frames.png`: real, before, after; `D_final/side_by_side.mp4` with sound.
+
 ## Still wrong / next
-- Vowels about 30% too wide (try gain 1.5 on a fourth segment).
+- Now about half the real speaker's range on a lively segment: a gain between 3.5 and 4.5 is the next test.
+- Teeth render grey inside the mouth (lighting; texture is white/pink).
 - Frame-level correlation with the real lip gap is near zero on these clips (V4), so timing
   is judged by phoneme-centre contrast and by eye. ElevenLabs' own timestamps could replace
   Whisper's for its voices.

@@ -18,10 +18,12 @@ brings Visemes 01 and CMUdict. The Whisper model (base.en, MIT, 140 MB) download
 4. If a word is misheard, pass the script: `tools/talk.sh voiceover.mp3 OUT check script.txt`
    (it steers Whisper's spelling; timing still comes from the audio).
 
-## Settings that worked
-gain 1.9 on visemes (keys allowed to 2), talking jaw 0.22 that yields to p/b/m and f/v,
-viseme bumps widened 50% each side, loudness scaling 0.4 + 0.6 x loudness, idle blinks
-every 2 to 5 s, head motion borrowed from run 018's tracked speaker.
+## Settings that worked (run 019 D_final, held out)
+Visemes: bumps widened 50% each side, visibility weights (h 0.2, d/t/n and k/g 0.3, l 0.4,
+r and s/z 0.5, y and th 0.6, sh 0.8), blended to sum at most 1, Gaussian smoothing 40 ms
+(p/b/m keep 80% of their peak), loudness 0.4 + 0.6 x loudness, tanh soft limit gain 3.5.
+Talking jaw 0.22 while speaking, yielding to p/b/m, f/v and to open vowels. Idle blinks
+every 2 to 5 s; head motion borrowed from run 018's tracked speaker; tongue on.
 
 ## Failure signatures
 | Symptom | Cause | Fix |
@@ -30,4 +32,7 @@ every 2 to 5 s, head motion borrowed from run 018's tracked speaker.
 | Mouth snaps shut between sounds | Visemes alone (V6) | talking jaw (default) |
 | Lips do not meet on p/b/m | Talking jaw unconditional | it yields to p/b/m, f/v (default) |
 | Mouth freezes on numbers | Whisper writes digits | `number_words` (default) |
-| Vowels a little too wide | gain + talking jaw (V7) | open: try gain 1.5 |
+| Mouth too quick, flaps every frame | One full shape per phoneme (V9) | visibility weights, blending, 40 ms smoothing (default) |
+| Grimace or huge "O" | Shapes stacked or pushed past 1; jaw stacked on vowels (V9, V11) | blend + tanh soft limit; jaw yields to vowels (default) |
+| Black hole in the open mouth | No tongue | `build_human(tongue=True)` (default) |
+| Calmer than a lively speaker | Soft limit keeps peaks natural (V12) | raise `--gain` toward 4.5 if wanted; watch for distortion |

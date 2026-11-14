@@ -93,7 +93,8 @@ def check_human_clothed():
     scene = stage.new_scene()
     body = human.build_human(scene, name="A", outfit=("female_casualsuit01", "shoes01"),
                              hair="long01", gender=0.0)
-    assert body.type == "MESH" and len(body.children) == 7
+    # outfit 2 + hair + eyes + brows + lashes + teeth + tongue (tongue added 14 Nov 2026)
+    assert body.type == "MESH" and len(body.children) == 8
     assert 1.4 < body["funnel_height_m"] < 1.8
     # skin under the outfit is removed
     assert len(body.data.polygons) < 13378

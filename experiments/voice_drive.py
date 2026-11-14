@@ -29,6 +29,8 @@ ap.add_argument("audio")
 ap.add_argument("run_dir")
 ap.add_argument("--start", type=float, default=0.0)
 ap.add_argument("--gain", type=float, default=1.0)
+ap.add_argument("--soft", action="store_true", help="tanh soft limit instead of a plain gain")
+ap.add_argument("--frames", type=int, default=0, help="only the first N frames (quick tuning)")
 ap.add_argument("--truth", default="")
 ap.add_argument("--blinks", action="store_true")
 ap.add_argument("--talk-jaw", type=float, default=0.22, help="jawOpen while speaking (0 = off)")
@@ -39,9 +41,17 @@ a = ap.parse_args()
 os.makedirs(os.path.join(a.run_dir, "render"), exist_ok=True)
 
 times, chans = face_anim.read_curves(a.voice)
-n = len(times)
+n = a.frames or len(times)
+times = times[:n]
+chans = {k: v[:n] for k, v in chans.items()}
 fps = 1.0 / float(np.median(np.diff(times)))
-values = {v: np.clip(chans[v] * a.gain, 0.0, 2.0) for v in face_anim.VISEMES}   # keys allow up to 3
+if a.soft:
+    # Soft limit: small weights lifted about gain x, but no shape past its designed full
+    # value 1 (a plain gain of 3 matched the real speaker's motion statistics but pushed
+    # vowels past 2 and distorted them: A_g3/consecutive.png).
+    values = {v: np.tanh(a.gain * np.clip(chans[v], 0.0, None)) for v in face_anim.VISEMES}
+else:
+    values = {v: np.clip(chans[v] * a.gain, 0.0, 2.0) for v in face_anim.VISEMES}   # keys allow up to 3
 values["mouthPucker"] = np.zeros(n)                      # carries the rest offset (REST_OFFSET)
 # Talking baseline: real speakers keep the lips parted between sounds (median lip gap 0.079
 # vs our 0.044 with visemes alone, runs/019 B_gain19). While speech is active (loudness
@@ -52,7 +62,13 @@ active = np.clip((active - 0.05) / 0.25, 0.0, 1.0)
 # ...but lips must meet for p/b/m and nearly for f/v: the baseline yields to them
 # (with it unconditional, p/b/m centres stayed at 0.075 face widths, C_final try 1).
 closing = np.maximum(chans["p_b_m_21"] / max(chans["p_b_m_21"].max(), 1e-9), 0.7 * chans["f_v_18"] / max(chans["f_v_18"].max(), 1e-9))
-values["jawOpen"] = np.clip(a.talk_jaw * active * (1.0 - closing), 0.0, 1.0)
+# ...and to open vowels: it only fills in the opening the visemes do not already give
+# (stacked on "aa" it reached a lip gap past real speakers' 95th percentile, A_soft3.5 f115).
+resp = json.load(open(os.path.join(HERE, "results_viseme_response.json")))
+rest_lip = resp["visemes"]["rest"]["lip_gap"]
+opening = sum(values[v] * max(resp["visemes"][v]["lip_gap"] - rest_lip, 0.0) for v in face_anim.VISEMES)
+fill = np.clip(1.0 - opening / (resp["real_lip_gap_p95"] - rest_lip), 0.0, 1.0)
+values["jawOpen"] = np.clip(a.talk_jaw * active * (1.0 - closing) * fill, 0.0, 1.0)
 if a.blinks:
     # Idle blinks: every 2 to 5 s, 150 ms closing and opening (no source for them in audio).
     rng = np.random.default_rng(1)
@@ -90,7 +106,7 @@ if not a.no_render:
                     "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "23", "-c:a", "aac", "-shortest",
                     os.path.join(a.run_dir, "talk.mp4")], check=True)
 
-check = {"frames": n, "fps": round(fps, 3), "gain": a.gain, "talk_jaw": a.talk_jaw, "blinks": a.blinks}
+check = {"frames": n, "fps": round(fps, 3), "gain": a.gain, "soft": a.soft, "talk_jaw": a.talk_jaw, "blinks": a.blinks}
 if a.truth:
     out_csv = os.path.join(a.run_dir, "render.csv")
     subprocess.run([os.path.join(ROOT, ".venv-face", "bin", "python"), "-I", os.path.join(ROOT, "tools", "face_track.py"),

@@ -36,7 +36,7 @@ ARKIT = ["browDownLeft", "browDownRight", "browInnerUp", "browOuterUpLeft", "bro
          "mouthPucker", "mouthRight", "mouthRollLower", "mouthRollUpper", "mouthShrugLower",
          "mouthShrugUpper", "mouthSmileLeft", "mouthSmileRight", "mouthStretchLeft", "mouthStretchRight",
          "mouthUpperUpLeft", "mouthUpperUpRight", "noseSneerLeft", "noseSneerRight", "tongueOut"]
-EXTRA = ["head_yaw", "head_pitch", "head_roll", "lip_gap", "eye_open_l", "eye_open_r", "brow_l", "brow_r"]
+EXTRA = ["head_yaw", "head_pitch", "head_roll", "lip_gap", "eye_open_l", "eye_open_r", "brow_l", "brow_r", "mouth_width"]
 # Face Mesh landmark indices (canonical face model): inner lips 13/14, cheeks 234/454,
 # lids of the subject's left eye 386/374 and right eye 159/145.
 LIP, CHEEKS, EYE_L, EYE_R = (13, 14), (234, 454), (386, 374), (159, 145)
@@ -44,6 +44,7 @@ LIP, CHEEKS, EYE_L, EYE_R = (13, 14), (234, 454), (386, 374), (159, 145)
 BROW_L, BROW_R = (293, 334, 296), (63, 105, 66)
 # Eye corners (inner, outer) do not move in a blink: subject's left 362/263, right 133/33.
 CORNERS_L, CORNERS_R = (362, 263), (133, 33)
+MOUTH = (61, 291)              # mouth corners
 
 
 def frames(src, fps, max_seconds):
@@ -114,7 +115,8 @@ def main():
             row = [f"{scores[n]:.5f}" if n in scores else "" for n in ARKIT]
             brow = lambda ids, corners: (p[list(corners), 1].mean() - p[list(ids), 1].mean()) / width  # above the eye corners
             row += [f"{v:.3f}" for v in (yaw, pitch, roll)] + [f"{v:.5f}" for v in (gap(LIP), gap(EYE_L), gap(EYE_R),
-                                                                                  brow(BROW_L, CORNERS_L), brow(BROW_R, CORNERS_R))]
+                                                                                  brow(BROW_L, CORNERS_L), brow(BROW_R, CORNERS_R),
+                                                                                  gap(MOUTH))]
             w.writerow([i, f"{t:.4f}", 1] + row)
     print(f"{a.out}: face found in {found} frames", file=sys.stderr)
 
