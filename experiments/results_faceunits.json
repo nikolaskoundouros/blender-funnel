@@ -1,0 +1,39 @@
+{
+ "neutral": {
+  "moved_vertices": 0,
+  "moved_helpers": 0,
+  "max_cm": 0.0,
+  "left_minus_right_cm": null
+ },
+ "jawOpen": {
+  "moved_vertices": 2491,
+  "moved_helpers": 294,
+  "max_cm": 3.87,
+  "left_minus_right_cm": 0.004
+ },
+ "eyeBlinkLeft": {
+  "moved_vertices": 777,
+  "moved_helpers": 65,
+  "max_cm": 1.55,
+  "left_minus_right_cm": 0.29
+ },
+ "mouthSmileLeft": {
+  "moved_vertices": 1622,
+  "moved_helpers": 48,
+  "max_cm": 1.87,
+  "left_minus_right_cm": 0.218
+ },
+ "browInnerUp": {
+  "moved_vertices": 594,
+  "moved_helpers": 0,
+  "max_cm": 0.52,
+  "left_minus_right_cm": 0.0
+ },
+ "mouthPucker": {
+  "moved_vertices": 1636,
+  "moved_helpers": 0,
+  "max_cm": 0.87,
+  "left_minus_right_cm": 0.0
+ },
+ "blender": "5.3.0"
+}

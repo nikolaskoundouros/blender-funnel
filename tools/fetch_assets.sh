@@ -3,7 +3,9 @@
 #   1. Base mesh, body-shape targets, skeletons and weights: data files from the MPFB
 #      repository at a pinned commit. Only data is copied; none of its code is used.
 #   2. Skins, hair, eyes and clothes: the MakeHuman system asset pack (about 280 MB).
-#   3. Four dance clips from the CMU motion-capture database (BVH conversion by B. Hahne;
+#   3. Faceunits 01: 52 ARKit-named face targets for the same base mesh (CC0, contributed
+#      by Mika Suominen; host index: "Functional asset packs ... shared under CC0").
+#   4. Four dance clips from the CMU motion-capture database (BVH conversion by B. Hahne;
 #      free for research and commercial use).
 # Usage: tools/fetch_assets.sh [target_dir]     (default: ./assets)
 set -euo pipefail
@@ -36,6 +38,15 @@ if [ ! -d "$TARGET/system/clothes" ]; then
   python3 -I -c "import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$WORK/pack.zip" "$TARGET/system"
 fi
 
+FACEUNITS_URL="https://files.makehumancommunity.org/functional/faceunits01.zip"
+FACEUNITS_SHA256="d113107bd7eb59f3af4df6fc0ec29bfcc593f496d0b336aec14f086a80ce7146"
+if [ ! -f "$TARGET/faceunits01/targets/faceunits/jawOpen.target" ]; then
+  curl -sS -L --retry 3 -o "$WORK/faceunits01.zip" "$FACEUNITS_URL"
+  echo "$FACEUNITS_SHA256  $WORK/faceunits01.zip" | sha256sum -c --quiet
+  mkdir -p "$TARGET/faceunits01"
+  python3 -I -c "import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$WORK/faceunits01.zip" "$TARGET/faceunits01"
+fi
+
 if [ ! -f "$TARGET/motion/cmu/05_02.bvh" ]; then
   git clone --quiet --filter=blob:none --no-checkout https://github.com/una-dinosauria/cmu-mocap.git "$WORK/cmu"
   git -C "$WORK/cmu" sparse-checkout set --no-cone \
@@ -46,4 +57,4 @@ if [ ! -f "$TARGET/motion/cmu/05_02.bvh" ]; then
 fi
 
 echo "assets ready in $TARGET"
-du -sh "$TARGET/mpfb_data" "$TARGET/system" "$TARGET/motion"
+du -sh "$TARGET/mpfb_data" "$TARGET/system" "$TARGET/faceunits01" "$TARGET/motion"
