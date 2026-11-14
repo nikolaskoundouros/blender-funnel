@@ -26,12 +26,13 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, HERE)
 from recipes import face_anim, render  # noqa: E402
 from face_response import face_scene  # noqa: E402
+from face_metrics import compare  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument("source")
 ap.add_argument("run_dir")
 ap.add_argument("--frames", type=int, default=0)
-ap.add_argument("--gains", default="{}")
+ap.add_argument("--gains", default="", help="JSON; default: experiments/results_face_gains.json")
 ap.add_argument("--source-frames", default="")
 ap.add_argument("--no-render", action="store_true")
 ap.add_argument("--no-topup", action="store_true")
@@ -46,7 +47,7 @@ times = times[:n]
 chans = {k: v[:n] for k, v in chans.items()}
 rate = 1.0 / float(np.median(np.diff(times)))
 neutral = {u: float(np.nanpercentile(chans[u], 5)) for u in face_anim.ARKIT if u in chans and not np.all(np.isnan(chans[u]))}
-gains = json.loads(a.gains)
+gains = json.loads(a.gains) if a.gains else json.load(open(os.path.join(HERE, "results_face_gains.json")))["gains"]
 values = face_anim.prepare(chans, rate, neutral=neutral, gain=gains)
 TOPUP = "--no-topup" not in sys.argv
 if TOPUP:
@@ -90,28 +91,16 @@ subprocess.run([os.path.join(ROOT, ".venv-face", "bin", "python"), "-I", os.path
 _, got = face_anim.read_curves(out_csv)
 
 
-def compare(x, y, max_lag=6):
-    m = ~np.isnan(x) & ~np.isnan(y)
-    x, y = x[m], y[m]
-    best = (-2.0, 0)
-    for lag in range(-max_lag, max_lag + 1):
-        xs, ys = (x[:len(x) - lag], y[lag:]) if lag >= 0 else (x[-lag:], y[:len(y) + lag])
-        r = float(np.corrcoef(xs, ys)[0, 1])
-        best = max(best, (r, lag))
-    amp = lambda z: float(np.percentile(z, 95) - np.percentile(z, 5))
-    return {"r_lag0": round(float(np.corrcoef(x, y)[0, 1]), 3), "r_best": round(best[0], 3), "lag_frames": best[1],
-            "amplitude_ratio_render_over_source": round(amp(y) / max(amp(x), 1e-9), 3)}
-
-
 check = {"frames": n, "rate": round(rate, 3), "gains": gains, "lip_top_up": TOPUP, "refined_from": a.refine, "smoothing": "one-euro forward+backward",
          "found_in_render": int(np.sum(got["found"] == 1)),
          "lip_gap": compare(chans["lip_gap"], got["lip_gap"][:n]),
          "eye_open_l": compare(chans["eye_open_l"], got["eye_open_l"][:n]),
          "eye_open_r": compare(chans["eye_open_r"], got["eye_open_r"][:n]),
          "head": {k: compare(chans["head_" + k], got["head_" + k][:n]) for k in ("yaw", "pitch", "roll")},
-         "blendshapes": {u: compare(chans[u], got[u][:n]) for u in
-                         ("eyeBlinkLeft", "eyeBlinkRight", "mouthSmileLeft", "mouthSmileRight",
-                          "mouthUpperUpLeft", "mouthLowerDownLeft", "browInnerUp", "mouthPucker")}}
+         "brow_l": compare(chans["brow_l"], got["brow_l"][:n]) if "brow_l" in chans else None,
+         "brow_r": compare(chans["brow_r"], got["brow_r"][:n]) if "brow_r" in chans else None,
+         "blendshapes": {u: compare(chans[u], got[u][:n]) for u in face_anim.ARKIT
+                         if u != "tongueOut" and np.nanstd(chans[u]) > 0.01 and np.nanstd(got[u][:n]) > 1e-4}}
 print(json.dumps({k: check[k] for k in ("found_in_render", "lip_gap", "eye_open_l", "eye_open_r")}, indent=1))
 json.dump(check, open(os.path.join(a.run_dir, "check.json"), "w"), indent=1)
 

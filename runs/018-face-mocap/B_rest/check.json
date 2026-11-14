@@ -1,0 +1,268 @@
+{
+ "frames": 192,
+ "rate": 23.981,
+ "gains": {
+  "eyeLookOutLeft": 1.368,
+  "eyeLookUpLeft": 0.287,
+  "eyeLookUpRight": 0.459,
+  "eyeSquintLeft": 0.695,
+  "eyeWideLeft": 1.761,
+  "eyeWideRight": 2.0,
+  "mouthSmileRight": 1.425,
+  "mouthUpperUpRight": 2.0
+ },
+ "lip_top_up": true,
+ "refined_from": "",
+ "smoothing": "one-euro forward+backward",
+ "found_in_render": 192,
+ "lip_gap": {
+  "r_lag0": 0.852,
+  "r_best": 0.852,
+  "lag_frames": 0,
+  "amplitude_ratio_render_over_source": 0.712
+ },
+ "eye_open_l": {
+  "r_lag0": 0.942,
+  "r_best": 0.942,
+  "lag_frames": 0,
+  "amplitude_ratio_render_over_source": 0.988
+ },
+ "eye_open_r": {
+  "r_lag0": 0.935,
+  "r_best": 0.935,
+  "lag_frames": 1,
+  "amplitude_ratio_render_over_source": 0.974
+ },
+ "head": {
+  "yaw": {
+   "r_lag0": 0.992,
+   "r_best": 0.992,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.986
+  },
+  "pitch": {
+   "r_lag0": 0.94,
+   "r_best": 0.94,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.964
+  },
+  "roll": {
+   "r_lag0": 0.992,
+   "r_best": 0.992,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.206
+  }
+ },
+ "brow_l": {
+  "r_lag0": 0.958,
+  "r_best": 0.958,
+  "lag_frames": 0,
+  "amplitude_ratio_render_over_source": 0.8
+ },
+ "brow_r": {
+  "r_lag0": 0.935,
+  "r_best": 0.935,
+  "lag_frames": 1,
+  "amplitude_ratio_render_over_source": 0.961
+ },
+ "blendshapes": {
+  "browDownLeft": {
+   "r_lag0": 0.905,
+   "r_best": 0.905,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 15.157
+  },
+  "browDownRight": {
+   "r_lag0": 0.824,
+   "r_best": 0.83,
+   "lag_frames": 2,
+   "amplitude_ratio_render_over_source": 8.148
+  },
+  "browInnerUp": {
+   "r_lag0": 0.236,
+   "r_best": 0.24,
+   "lag_frames": -1,
+   "amplitude_ratio_render_over_source": 0.009
+  },
+  "browOuterUpLeft": {
+   "r_lag0": 0.781,
+   "r_best": 0.783,
+   "lag_frames": -1,
+   "amplitude_ratio_render_over_source": 0.222
+  },
+  "browOuterUpRight": {
+   "r_lag0": 0.925,
+   "r_best": 0.925,
+   "lag_frames": -1,
+   "amplitude_ratio_render_over_source": 0.097
+  },
+  "eyeBlinkLeft": {
+   "r_lag0": 0.948,
+   "r_best": 0.948,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.006
+  },
+  "eyeBlinkRight": {
+   "r_lag0": 0.947,
+   "r_best": 0.949,
+   "lag_frames": 1,
+   "amplitude_ratio_render_over_source": 1.308
+  },
+  "eyeLookDownLeft": {
+   "r_lag0": 0.902,
+   "r_best": 0.902,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.057
+  },
+  "eyeLookDownRight": {
+   "r_lag0": 0.887,
+   "r_best": 0.887,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.982
+  },
+  "eyeLookInLeft": {
+   "r_lag0": 0.687,
+   "r_best": 0.687,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.812
+  },
+  "eyeLookInRight": {
+   "r_lag0": 0.813,
+   "r_best": 0.813,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.328
+  },
+  "eyeLookOutLeft": {
+   "r_lag0": 0.813,
+   "r_best": 0.819,
+   "lag_frames": 1,
+   "amplitude_ratio_render_over_source": 1.44
+  },
+  "eyeLookOutRight": {
+   "r_lag0": 0.741,
+   "r_best": 0.741,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.811
+  },
+  "eyeLookUpLeft": {
+   "r_lag0": 0.892,
+   "r_best": 0.901,
+   "lag_frames": -1,
+   "amplitude_ratio_render_over_source": 1.229
+  },
+  "eyeLookUpRight": {
+   "r_lag0": 0.874,
+   "r_best": 0.89,
+   "lag_frames": -1,
+   "amplitude_ratio_render_over_source": 0.786
+  },
+  "eyeSquintLeft": {
+   "r_lag0": 0.865,
+   "r_best": 0.866,
+   "lag_frames": -1,
+   "amplitude_ratio_render_over_source": 1.051
+  },
+  "eyeSquintRight": {
+   "r_lag0": 0.79,
+   "r_best": 0.793,
+   "lag_frames": 1,
+   "amplitude_ratio_render_over_source": 1.663
+  },
+  "eyeWideRight": {
+   "r_lag0": 0.793,
+   "r_best": 0.809,
+   "lag_frames": -4,
+   "amplitude_ratio_render_over_source": 0.136
+  },
+  "jawOpen": {
+   "r_lag0": 0.84,
+   "r_best": 0.863,
+   "lag_frames": -1,
+   "amplitude_ratio_render_over_source": 14.897
+  },
+  "mouthFunnel": {
+   "r_lag0": 0.564,
+   "r_best": 0.58,
+   "lag_frames": 1,
+   "amplitude_ratio_render_over_source": 0.349
+  },
+  "mouthLowerDownLeft": {
+   "r_lag0": 0.524,
+   "r_best": 0.541,
+   "lag_frames": 1,
+   "amplitude_ratio_render_over_source": 0.528
+  },
+  "mouthLowerDownRight": {
+   "r_lag0": 0.487,
+   "r_best": 0.52,
+   "lag_frames": 3,
+   "amplitude_ratio_render_over_source": 0.36
+  },
+  "mouthPressLeft": {
+   "r_lag0": 0.455,
+   "r_best": 0.484,
+   "lag_frames": -2,
+   "amplitude_ratio_render_over_source": 1.446
+  },
+  "mouthPressRight": {
+   "r_lag0": 0.088,
+   "r_best": 0.227,
+   "lag_frames": -6,
+   "amplitude_ratio_render_over_source": 1.598
+  },
+  "mouthPucker": {
+   "r_lag0": 0.03,
+   "r_best": 0.201,
+   "lag_frames": 5,
+   "amplitude_ratio_render_over_source": 0.1
+  },
+  "mouthShrugLower": {
+   "r_lag0": 0.728,
+   "r_best": 0.728,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.108
+  },
+  "mouthShrugUpper": {
+   "r_lag0": 0.115,
+   "r_best": 0.256,
+   "lag_frames": -6,
+   "amplitude_ratio_render_over_source": 0.371
+  },
+  "mouthSmileLeft": {
+   "r_lag0": 0.942,
+   "r_best": 0.942,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.282
+  },
+  "mouthSmileRight": {
+   "r_lag0": 0.936,
+   "r_best": 0.936,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.251
+  },
+  "mouthStretchLeft": {
+   "r_lag0": 0.21,
+   "r_best": 0.21,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.078
+  },
+  "mouthStretchRight": {
+   "r_lag0": 0.306,
+   "r_best": 0.374,
+   "lag_frames": 2,
+   "amplitude_ratio_render_over_source": 0.411
+  },
+  "mouthUpperUpLeft": {
+   "r_lag0": 0.639,
+   "r_best": 0.639,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.29
+  },
+  "mouthUpperUpRight": {
+   "r_lag0": 0.716,
+   "r_best": 0.716,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.73
+  }
+ }
+}

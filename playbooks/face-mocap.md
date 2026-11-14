@@ -11,7 +11,9 @@ run 018 (14 Nov 2026).
    on CPU; without them: `OSError: libEGL.so.1`).
 3. Character-specific calibration, about 3 minutes, redo when the face sliders change:
    `python experiments/face_response.py` (per-unit lip/eye response, also the P2 matrix),
-   `python experiments/face_jaw_curve.py`, `python experiments/face_head_axes.py`.
+   `python experiments/face_jaw_curve.py`, `python experiments/face_head_axes.py`,
+   `python experiments/face_rest_offset.py` (rest pucker); gains: drive one segment, set
+   gain = 1/amplitude for channels off by >15% (r >= 0.6), validate on another segment.
 
 ## Per clip
 1. Clip: frontal face, about a third of the frame wide, even light, unmirrored (flip a
@@ -37,4 +39,6 @@ run 018 (14 Nov 2026).
 | Everything 2 to 3 frames late | Forward-only smoothing | `face_anim.zero_phase` (default) |
 | Head roll too large | Axis response measured on one bone but driven over two | Measure with the same split (`face_head_axes.py` does) |
 | Left and right swapped | Mirrored selfie video | Flip before tracking (F5) |
-| Brows dead | browInnerUp/OuterUp shapes too weak for the tracker (F7, F12) | Open: gain or stronger brow shapes |
+| Brows dead | browInnerUp/OuterUp shapes too weak for the tracker (F7, F12) | `face_anim.BROW_GAIN` 2 (default; F14). Check by eye: the tracker cannot measure our brows (F13) |
+| Pucker overshoot when the source relaxes | Our resting mouth reads as puckered (F15) | `face_anim.REST_OFFSET` mouthPucker -0.5 (default) |
+| Smiles or eye channels off by >15% | Character-specific response | Gains in `experiments/results_face_gains.json` (default in face_drive); recalibrate on one segment, validate on another (F16) |

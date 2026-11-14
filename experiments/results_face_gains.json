@@ -1,0 +1,22 @@
+{
+ "from": "runs/018-face-mocap/A_rest (segment 40-55 s, with REST_OFFSET), second pass",
+ "rule": "1/amplitude for channels with r>=0.6 and amplitude off by >25%, clipped 0.25..2",
+ "gains": {
+  "eyeLookOutLeft": 1.664,
+  "eyeLookUpLeft": 0.25,
+  "eyeLookUpRight": 0.282,
+  "eyeSquintLeft": 0.438,
+  "eyeWideLeft": 2.0,
+  "eyeWideRight": 2.0,
+  "mouthSmileRight": 1.192,
+  "mouthUpperUpRight": 2.0,
+  "eyeLookInLeft": 0.763,
+  "eyeLookOutRight": 0.832,
+  "eyeSquintRight": 0.816,
+  "mouthFunnel": 2.0,
+  "mouthShrugLower": 2.0,
+  "mouthSmileLeft": 0.791,
+  "mouthUpperUpLeft": 2.0
+ },
+ "note": "mouthPucker removed: its overshoot came from the resting mouth (face_anim.REST_OFFSET), not the key; validated on segment B (runs/018-face-mocap/B_*)"
+}

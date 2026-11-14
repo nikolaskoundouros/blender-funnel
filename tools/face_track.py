@@ -9,9 +9,10 @@ Usage:
     .venv-face/bin/python -I tools/face_track.py VIDEO_OR_FRAME_DIR out.csv [--fps 24] [--max-seconds 30]
 A directory is read as sorted PNG/JPG frames at --fps. Columns: frame, time_s, found, the 52
 ARKit names (tongueOut is empty: MediaPipe does not report it), head_yaw/pitch/roll in
-degrees from the face transform, lip_gap (inner-lip gap / face width) and eye_open_l/r
-(lid gap / face width, subject's left/right). The last three come from landmarks only, so
-they check the blendshape scores independently.
+degrees from the face transform, lip_gap (inner-lip gap / face width), eye_open_l/r
+(lid gap / face width, subject's left/right) and brow_l/r (brow height above the eye corners /
+face width). The last five come from landmarks only, so they check the blendshape scores
+independently.
 """
 import argparse
 import csv
@@ -35,10 +36,14 @@ ARKIT = ["browDownLeft", "browDownRight", "browInnerUp", "browOuterUpLeft", "bro
          "mouthPucker", "mouthRight", "mouthRollLower", "mouthRollUpper", "mouthShrugLower",
          "mouthShrugUpper", "mouthSmileLeft", "mouthSmileRight", "mouthStretchLeft", "mouthStretchRight",
          "mouthUpperUpLeft", "mouthUpperUpRight", "noseSneerLeft", "noseSneerRight", "tongueOut"]
-EXTRA = ["head_yaw", "head_pitch", "head_roll", "lip_gap", "eye_open_l", "eye_open_r"]
+EXTRA = ["head_yaw", "head_pitch", "head_roll", "lip_gap", "eye_open_l", "eye_open_r", "brow_l", "brow_r"]
 # Face Mesh landmark indices (canonical face model): inner lips 13/14, cheeks 234/454,
 # lids of the subject's left eye 386/374 and right eye 159/145.
 LIP, CHEEKS, EYE_L, EYE_R = (13, 14), (234, 454), (386, 374), (159, 145)
+# Upper brow contour, subject's left (293, 334, 296) and right (63, 105, 66).
+BROW_L, BROW_R = (293, 334, 296), (63, 105, 66)
+# Eye corners (inner, outer) do not move in a blink: subject's left 362/263, right 133/33.
+CORNERS_L, CORNERS_R = (362, 263), (133, 33)
 
 
 def frames(src, fps, max_seconds):
@@ -107,7 +112,9 @@ def main():
             gap = lambda ab: np.linalg.norm(p[ab[0]] - p[ab[1]]) / width
             yaw, pitch, roll = head_angles(res.facial_transformation_matrixes[0])
             row = [f"{scores[n]:.5f}" if n in scores else "" for n in ARKIT]
-            row += [f"{v:.3f}" for v in (yaw, pitch, roll)] + [f"{v:.5f}" for v in (gap(LIP), gap(EYE_L), gap(EYE_R))]
+            brow = lambda ids, corners: (p[list(corners), 1].mean() - p[list(ids), 1].mean()) / width  # above the eye corners
+            row += [f"{v:.3f}" for v in (yaw, pitch, roll)] + [f"{v:.5f}" for v in (gap(LIP), gap(EYE_L), gap(EYE_R),
+                                                                                  brow(BROW_L, CORNERS_L), brow(BROW_R, CORNERS_R))]
             w.writerow([i, f"{t:.4f}", 1] + row)
     print(f"{a.out}: face found in {found} frames", file=sys.stderr)
 

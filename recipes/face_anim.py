@@ -32,6 +32,14 @@ ARKIT = ["browDownLeft", "browDownRight", "browInnerUp", "browOuterUpLeft", "bro
          "mouthUpperUpLeft", "mouthUpperUpRight", "noseSneerLeft", "noseSneerRight", "tongueOut"]
 
 
+# Visemes 01 targets (Microsoft viseme IDs 1-21; 0 is silence = rest), file names as shape
+# key names. Phoneme groups follow Microsoft's table (learn.microsoft.com, "Get facial
+# position with viseme"), except that the pack puts TH with DH (17), not with D/T/N (19).
+VISEMES = ["aa_ah_ax_01", "aa_02", "ao_03", "ey_eh_uh_04", "er_05", "y_iy_ih_ix_06", "w_uw_07", "ow_08",
+           "aw_09", "oy_10", "ay_11", "h_12", "r_13", "l_14", "s_z_15", "sh_ch_jh_zh_16", "th_dh_17",
+           "f_v_18", "d_t_n_19", "k_g_ng_20", "p_b_m_21"]
+
+
 def _object_positions(name, item, verts_mh):
     """Blender-space positions of one built object for given base-mesh positions."""
     if "offset" in item:                                  # fitted MakeHuman item (.mhclo)
@@ -77,6 +85,8 @@ def add_faceunit_keys(root, units=ARKIT, sculpt=None, **sliders):
             co = np.empty(len(obj.data.vertices) * 3)
             obj.data.shape_keys.key_blocks["Basis"].data.foreach_get("co", co)
             key.data.foreach_set("co", (co.reshape(-1, 3) + delta).ravel())
+            key.slider_max = 3.0      # brows are driven past 1
+            key.slider_min = -1.0     # rest offsets go below 0 (REST_OFFSET)
             key.value = 0.0
             moved[unit] += 1
     return moved
@@ -156,27 +166,44 @@ def lip_top_up(values, source_lip, lip_per_unit, neutral_lip=0.0, jaw_curve=None
     return out
 
 
-def prepare(chans, rate, neutral=None, gain=None, smooth=True, floor=0.0):
+# Rest offsets added to the driven values: our character's resting mouth reads as puckered
+# to MediaPipe (0.53; a relaxed real face reads about 0.04), which showed up as pucker
+# overshoot whenever the source relaxed (run 018). mouthPucker -0.5 brings the rest reading
+# to about 0.07 (experiments/face_rest_offset.py, runs/017-faceunits/pucker_rest.png).
+REST_OFFSET = {"mouthPucker": -0.5}
+
+# Brows: MediaPipe reads a real person's brows well but hardly sees our Faceunits brow
+# shapes (P2), so they cannot be balanced by the round trip. Gain 2 makes a full score a
+# 1.04 cm raise (the shapes move 0.52 cm at 1.0); keys allow up to 2 (a forehead ridge
+# shows from about 2.5, runs/017-faceunits/brow_levels.png).
+BROW_GAIN = {"browInnerUp": 2.0, "browOuterUpLeft": 2.0, "browOuterUpRight": 2.0}
+CEILING = {"browInnerUp": 2.0, "browOuterUpLeft": 2.0, "browOuterUpRight": 2.0}
+
+
+def prepare(chans, rate, neutral=None, gain=None, smooth=True, floor=0.0, ceiling=CEILING):
     """Neutral offset, per-channel gain, clamp to 0..1 and zero-lag smoothing for the
     shape channels. neutral: {channel: value on a relaxed frame} subtracted first;
-    gain: {channel: factor}."""
+    gain: {channel: factor}, defaults BROW_GAIN for the brows; ceiling: per-channel upper
+    clamp (default 1, brows 2)."""
     out = {}
     for unit in ARKIT:
         x = np.nan_to_num(chans.get(unit, np.zeros(1)), nan=0.0)
         if neutral:
             x = x - neutral.get(unit, 0.0)
-        if gain:
-            x = x * gain.get(unit, 1.0)
-        x = np.clip(x, 0.0, 1.0)
+        g = {**BROW_GAIN, **(gain or {})}
+        x = x * g.get(unit, 1.0)
+        top = (ceiling or {}).get(unit, 1.0)
+        x = np.clip(x, 0.0, top)
         x[x < floor] = 0.0
-        out[unit] = np.clip(zero_phase(x, rate), 0.0, 1.0) if smooth and len(x) > 1 else x
+        out[unit] = np.clip(zero_phase(x, rate), 0.0, top) if smooth and len(x) > 1 else x
     return out
 
 
 def apply_curves(root, values, frame_start=1, head=None, head_bones=(("neck01", 0.4), ("head", 0.6)),
-                 tracker_per_bone=None):
+                 tracker_per_bone=None, rest_offset=REST_OFFSET):
     """Keyframe shape keys (values: {unit: per-frame array}) and optionally head rotation.
 
+    rest_offset: {unit: value added to every frame}, see REST_OFFSET.
     head: {"yaw", "pitch", "roll"} arrays in tracker degrees (tools/face_track.py), relative
     to the neutral pose. tracker_per_bone: 3x3 matrix, rows tracker (yaw, pitch, roll),
     columns bone axis (x, y, z), measured by experiments/face_head_axes.py on the default rig
@@ -192,8 +219,9 @@ def apply_curves(root, values, frame_start=1, head=None, head_bones=(("neck01", 
             kb = keys.key_blocks.get(unit)
             if kb is None:
                 continue
+            off = (rest_offset or {}).get(unit, 0.0)
             for i in range(n):
-                kb.value = float(curve[i])
+                kb.value = float(curve[i]) + off
                 kb.keyframe_insert("value", frame=frame_start + i)
     if head is not None and root.type == "ARMATURE":
         M = np.array(tracker_per_bone if tracker_per_bone is not None else [[0, 1, 0], [1, 0, 0], [0, 0, 1]], dtype=float)

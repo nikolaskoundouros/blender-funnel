@@ -47,6 +47,26 @@ if [ ! -f "$TARGET/faceunits01/targets/faceunits/jawOpen.target" ]; then
   python3 -I -c "import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$WORK/faceunits01.zip" "$TARGET/faceunits01"
 fi
 
+# Visemes 01: 22 Microsoft-style viseme targets for the base mesh (CC0, same pack page as
+# Faceunits 01), and CMUdict (BSD-style licence) for English pronunciations: voice lip sync.
+VISEMES_URL="https://files.makehumancommunity.org/functional/visemes01.zip"
+VISEMES_SHA256="f61f4f36bb4fe43486efa2a644eea9d6760e510bde10eecc97a4ddf28424e4d3"
+if [ ! -f "$TARGET/visemes01/targets/visemes/p_b_m_21.target" ]; then
+  curl -sS -L --retry 3 -o "$WORK/visemes01.zip" "$VISEMES_URL"
+  echo "$VISEMES_SHA256  $WORK/visemes01.zip" | sha256sum -c --quiet
+  mkdir -p "$TARGET/visemes01"
+  python3 -I -c "import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$WORK/visemes01.zip" "$TARGET/visemes01"
+fi
+CMUDICT_COMMIT="74790861f652b15e4ac49015a90074ad62a27690"
+CMUDICT_SHA256="81917843c7f44ce2b094ac63873c2c7a4cf802040792c455ba3ca406891c3d22"
+if [ ! -f "$TARGET/cmudict/cmudict.dict" ]; then
+  mkdir -p "$TARGET/cmudict"
+  curl -sS -L --retry 3 -o "$WORK/cmudict.dict" "https://raw.githubusercontent.com/cmusphinx/cmudict/$CMUDICT_COMMIT/cmudict.dict"
+  echo "$CMUDICT_SHA256  $WORK/cmudict.dict" | sha256sum -c --quiet
+  curl -sS -L --retry 3 -o "$TARGET/cmudict/LICENSE" "https://raw.githubusercontent.com/cmusphinx/cmudict/$CMUDICT_COMMIT/LICENSE"
+  cp "$WORK/cmudict.dict" "$TARGET/cmudict/"
+fi
+
 # MediaPipe Face Landmarker model (Apache-2.0 model card), for tools/face_track.py.
 MP_URL="https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task"
 MP_SHA256="64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff"

@@ -13,3 +13,4 @@ sources/video/
 .venv-face/
 runs/017-faceunits/matrix_frames*/
 runs/018-face-mocap/*/render/
+runs/019-voice-lipsync/*/render/

@@ -211,6 +211,8 @@ EXPRESSION_UNITS = os.path.join(DATA, "targets", "expression", "units")
 # Faceunits 01 (CC0): 52 ARKit-named targets for this base mesh, one file each, no ethnicity
 # split. Fetched by tools/fetch_assets.sh; see notes/facial-mocap-plan.md.
 FACEUNITS = os.path.join(os.path.dirname(DATA), "faceunits01", "targets", "faceunits")
+# Visemes 01 (CC0): 22 Microsoft-style viseme targets, named by the sounds they cover.
+VISEMES = os.path.join(os.path.dirname(DATA), "visemes01", "targets", "visemes")
 
 
 def morphed_base(expression=None, sculpt=None, **sliders):
@@ -219,7 +221,8 @@ def morphed_base(expression=None, sculpt=None, **sliders):
     expression: optional {unit name: weight 0..1} using MakeHuman's facial expression
     units, e.g. {"mouth-corner-puller": 0.8, "mouth-open": 0.3}. Names are the files in
     targets/expression/units/<ethnicity>/ without ".target.gz"; ARKit names such as
-    {"jawOpen": 1.0} use the Faceunits 01 pack instead. The ethnicity folder is
+    {"jawOpen": 1.0} use the Faceunits 01 pack, viseme names such as {"p_b_m_21": 1.0} the
+    Visemes 01 pack. The ethnicity folder is
     blended by the same african/asian/caucasian sliders as the body."""
     verts = base_mesh()[0].copy()
     for path, w in macro_targets(**sliders):
@@ -235,8 +238,10 @@ def morphed_base(expression=None, sculpt=None, **sliders):
         race = {k: sliders.get(k, 1 / 3) for k in ("african", "asian", "caucasian")}
         total = sum(race.values()) or 1.0
         for unit, amount in expression.items():
-            if unit[:1].islower() and os.path.exists(os.path.join(FACEUNITS, f"{unit}.target")):
-                idx, off = read_target(os.path.join(FACEUNITS, f"{unit}.target"))   # ARKit name
+            extra = [os.path.join(d, f"{unit}.target") for d in (FACEUNITS, VISEMES)]
+            extra = [x for x in extra if os.path.exists(x)]
+            if unit[:1].islower() and extra:
+                idx, off = read_target(extra[0])                 # ARKit name or viseme
                 verts[idx] += amount * off
                 continue
             for folder, share in race.items():
