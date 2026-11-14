@@ -1,0 +1,33 @@
+{
+ "collider_signed_volume_m3": 0.0318,
+ "collider_modifiers": [],
+ "pants_modifiers": [
+  "SOLIDIFY",
+  "SUBSURF"
+ ],
+ "tee_modifiers": [
+  "SOLIDIFY",
+  "SUBSURF"
+ ],
+ "tee_vs_body_collider": {
+  "near": 258,
+  "behind": 0,
+  "behind_fraction": 0.0,
+  "behind_z_range": null
+ },
+ "tee_vs_pants_with_thickness": {
+  "near": 0,
+  "behind": 0,
+  "behind_fraction": 0.0,
+  "behind_z_range": null
+ },
+ "tee_vs_pants_shell_only": {
+  "near": 0,
+  "behind": 0,
+  "behind_fraction": 0.0,
+  "behind_z_range": null
+ },
+ "pants_signed_volume_with_thickness_m3": 0.00193,
+ "reach_m": 0.03,
+ "blender": "5.3.0"
+}

@@ -9,3 +9,4 @@ runs/compare/
 *.bundle
 # Frames, audio and contact sheets from tutorial videos are other people's work: notes/ holds what we learned
 sources/video/
+.venv/

@@ -26,3 +26,4 @@ One row per outfit attempt, newest last. "Tries" counts simulate-and-look cycles
 | 013 boy outfit | Tee, blue track pants with red stripe (owner's change), yellow trainers | 6 steps | ~30 s build, ~70 s render | Shapes and colours right; tee stiff (draping over trousers failed), no chest print yet |
 | 013 tee (route E) | Modelled CC0 T-shirt, loosened by clothing-layer sculpt, chest print | 3 steps after 10 on draping | ~3 s build | Natural shirt, folds from the model; draping a generated shell abandoned |
 | 015 trainers | Yellow canvas low-tops with white sole, laces, eyelets, seams, all by code | 4 steps | ~1 s build | Close to the reference; no tongue or collar padding yet |
+| 016 hem rise | Route B tee shell draped over trousers (run 013 scene), cause of the rising hem | 1 reproduction + 11 one-change variants + 4 self-distance levels | 25-70 s per variant, 4 cores | Cause found (self distance vs edge length), recipe capped, hem +0.7 cm instead of +7.7 cm |

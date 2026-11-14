@@ -8,6 +8,9 @@ Rules taken from the Blender manual and confirmed in experiments/verify_cloth.py
   - Cloth must not start inside the body, so the shell needs ease before simulating.
   - Simulation is frame-sequential: every frame must be visited in order, and the scene
     must stay on the last frame for the render.
+  - Self-collision distance must stay well below the cloth's edge length, or neighbouring
+    triangles repel each other and the garment bunches upward (source: collision.cc in
+    Blender 5.3.0; verified in experiments/hem_real.py). add_cloth caps it automatically.
 
 Method: the garment is already posed by the skeleton. It is subdivided for resolution,
 given spare material, pinned along a chosen line (e.g. the shoulder yoke), and simulated
@@ -38,12 +41,15 @@ def make_collider(obj, thickness=0.006):
 
 
 def add_cloth(obj, pin_weights=None, fabric="cotton", spare=0.05, resolution=1, quality=10,
-              clearance=0.006, self_collision=True, sewing_force=12.0, self_distance=0.004):
+              clearance=0.006, self_collision=True, sewing_force=12.0, self_distance=0.004,
+              cap_self_distance=True):
     """Make a garment object simulate as cloth.
 
     pin_weights: one value per base vertex of the garment, 1 = fixed to the skeleton.
     spare: fraction of extra material (0.05 = 5 percent larger each way).
     resolution: subdivision levels before simulating; folds need small faces.
+    cap_self_distance: limit self_distance to self_distance_cap(); False only to reproduce
+    the uncapped behaviour in experiments.
     """
     f = FABRICS[fabric]
     first = 1 if obj.modifiers and obj.modifiers[0].type == "ARMATURE" else 0
@@ -78,8 +84,54 @@ def add_cloth(obj, pin_weights=None, fabric="cotton", spare=0.05, resolution=1, 
     c.collision_quality = 4
     c.distance_min = clearance
     c.use_self_collision = self_collision
-    c.self_distance_min = self_distance
+    # Self collision skips only triangle pairs that share a vertex (collision.cc,
+    # cloth_bvh_selfcollision_is_active). Two triangles one row apart sit about 0.7 edge
+    # lengths apart, so a self distance above ~0.35 edge makes the cloth collide with its
+    # own neighbours on every step: it bunches and the hem climbs (notes/cloth.md, claim 9).
+    cap = self_distance_cap(obj, cloth) if cap_self_distance else self_distance
+    obj["self_distance_requested"], obj["self_distance_cap"] = self_distance, cap
+    if self_collision and cap < 0.001:
+        # Blender's hard minimum is 1 mm (installed 5.3.0 property range): edges this short
+        # cannot self-collide without repelling their neighbours, so self collision is off.
+        c.use_self_collision = False
+        obj["self_collision_off"] = "cloth edges too short for the 1 mm minimum self distance"
+    c.self_distance_min = max(0.001, min(self_distance, cap))
     return cloth
+
+
+def cloth_edge_lengths(obj, cloth_mod):
+    """Edge lengths (world units) of the mesh the Cloth modifier receives."""
+    after = False
+    saved = []
+    for m in obj.modifiers:
+        after = after or m == cloth_mod
+        if after:
+            saved.append((m, m.show_viewport))
+            m.show_viewport = False
+    bpy.context.view_layer.update()
+    ev = obj.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    me = ev.to_mesh()
+    co = np.empty(len(me.vertices) * 3)
+    me.vertices.foreach_get("co", co)
+    ed = np.empty(len(me.edges) * 2, dtype=np.int64)
+    me.edges.foreach_get("vertices", ed)
+    ev.to_mesh_clear()
+    for m, s in saved:
+        m.show_viewport = s
+    co = co.reshape(-1, 3) @ np.array(obj.matrix_world)[:3, :3].T
+    ed = ed.reshape(-1, 2)
+    return np.linalg.norm(co[ed[:, 0]] - co[ed[:, 1]], axis=1)
+
+
+def self_distance_cap(obj, cloth_mod, factor=0.3, percentile=2.0):
+    """Largest safe self-collision distance for this cloth: factor x a short edge.
+
+    Calibrated in experiments/hem_real.py and hem_rise.py: run 013's tee (2nd-percentile
+    edge 3.5 mm) was fine at 1 mm and rose 2.5 cm at 1.5 mm; a 5.6 mm-edge tube was fine
+    at 1.5 mm and rose 15 cm at 4 mm."""
+    lengths = cloth_edge_lengths(obj, cloth_mod)
+    lengths = lengths[lengths > 1e-6]
+    return float(factor * np.percentile(lengths, percentile)) if len(lengths) else 0.004
 
 
 def simulate(scene, frames=40):

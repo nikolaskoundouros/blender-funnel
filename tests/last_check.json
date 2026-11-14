@@ -10,6 +10,7 @@
     "check_set_view": "pass",
     "check_camera_dof": "pass",
     "check_render": "pass",
+    "check_cloth_self_distance_cap": "pass",
     "check_human_clothed": "pass",
     "check_human_posed": "pass",
     "check_human_mixamo_rig": "pass",

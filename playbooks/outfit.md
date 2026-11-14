@@ -309,13 +309,28 @@ jeans as two separate mesh pieces.
 Generated garments on the same helper layer move with the edit too: lower an overlapping
 waistband (trousers `waist=0.0`) rather than fight poke-through.
 
-## Draping a T-shirt (route B) over trousers: not solved (run 013, steps 3 to 10)
+## Draping a T-shirt (route B) over trousers: solved (run 016, 14 Nov 2026)
 
-The hem rises 5 to 10 cm during simulation in every variant tried: pinned or not, with or
-without the trousers as a collider, posed at once or animated from the rest pose
-(`rig.animate_into_pose`), arms closer or wider, shell pushed clear of the body and the
-trousers, flared hem ease (`garments.tee_ease`), stiffer `jersey` fabric. Measured with a
-per-frame hem height (1st percentile of z; the minimum hid it). Cause not found. Use route E.
+Symptom in run 013: the hem rose 5 to 10 cm in every variant (pins, pose timing, colliders,
+ease, fabric). Cause: **self-collision distance larger than the cloth's own triangle
+spacing**. Blender skips only triangle pairs that share a vertex, so triangles one row
+apart (about 0.7 edge apart) that are closer than 2 x self distance repel on every step and
+the shirt bunches upward. Run 013 used 4 mm with 3.5 mm short edges after subdivision
+(Blender's default is 15 mm). Evidence: `notes/cloth.md` claims 9 to 12.
+
+Procedure now:
+1. `cloth.add_cloth` caps the self distance at 0.3 x the 2nd-percentile edge of the mesh
+   the cloth receives, and turns self collision off when that is under Blender's 1 mm minimum.
+   Read `obj["self_distance_cap"]` after the call; do not override it upward.
+2. Signature to watch: hem height (1st percentile of z) climbing over the first 15 frames
+   while the top stays put, and the simulation running several times slower than expected.
+3. If you subdivide more (finer folds), the cap drops; below 3.3 mm edges expect self
+   collision off. Prefer resolution 1 for a child's tee.
+4. Colliders: keep normals outward (single-sided collision pushes cloth along the face
+   normal; an inward-normal body swallows the cloth, claim 13).
+
+Result (`experiments/hem_real.py capped`, run 013 scene): hem +0.7 cm over 40 frames, 26 s.
+Timing: build 3 s, simulation 25 to 70 s, check render 240x320 at 16 samples about 10 s.
 
 ## Trainers by code (run 015, 4 steps, ~1 s build, ~10 s for two close-ups)
 

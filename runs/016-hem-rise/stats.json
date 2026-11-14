@@ -1,0 +1,10 @@
+{
+  "runs/016-hem-rise/capped.png": {
+    "p5": 0.344,
+    "median": 0.377,
+    "p95": 0.576,
+    "spread_p95_minus_p5": 0.232,
+    "clipped_fraction": 0.0,
+    "near_black_fraction": 0.0
+  }
+}

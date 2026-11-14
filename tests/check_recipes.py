@@ -17,7 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
 import recipes  # noqa: E402
-from recipes import camera, color, human, lighting, motion, render, rig, stage, world  # noqa: E402
+from recipes import camera, cloth, color, human, lighting, motion, render, rig, stage, world  # noqa: E402
 
 CAM = (6.0, -6.0, 3.0)
 
@@ -127,11 +127,38 @@ def check_motion_retarget():
     assert (a - b).length > 0.01  # the arm actually moves
 
 
+def check_cloth_self_distance_cap():
+    """add_cloth keeps the self-collision distance at most 0.3 x the cloth's short edges
+    (notes/cloth.md claim 9). One subdivision level halves a flat grid's edges: a coarse grid
+    keeps the requested 4 mm; 60 cuts (8.3 mm edges) is cut to 0.3 x 8.3 mm; 200 cuts (2.5 mm)
+    is below Blender's 1 mm minimum, so self collision is switched off."""
+    import bmesh
+    for cuts in (25, 60, 200):
+        scene, _ = fresh()
+        me = bpy.data.meshes.new("g")
+        bm = bmesh.new()
+        bmesh.ops.create_grid(bm, x_segments=cuts, y_segments=cuts, size=0.5)
+        bm.to_mesh(me)
+        bm.free()
+        obj = bpy.data.objects.new("g", me)
+        scene.collection.objects.link(obj)
+        edge = me.edges[0]
+        half = (me.vertices[edge.vertices[0]].co - me.vertices[edge.vertices[1]].co).length / 2
+        expect = min(0.004, 0.3 * half)
+        mod = cloth.add_cloth(obj, resolution=1, self_distance=0.004)
+        got = mod.collision_settings.self_distance_min
+        if expect >= 0.001:
+            assert abs(got - expect) < 0.05 * expect, (cuts, got, expect)
+            assert mod.collision_settings.use_self_collision
+        else:
+            assert not mod.collision_settings.use_self_collision, cuts
+
+
 HUMAN_CHECKS = [check_human_clothed, check_human_posed, check_human_mixamo_rig, check_motion_retarget]
 HAVE_ASSETS = os.path.exists(os.path.join(human.DATA, "3dobjs", "base.obj"))
 
 CHECKS = [check_principled, check_backdrop, check_three_point, check_solid_world,
-          check_sky_world, check_set_view, check_camera_dof, check_render]
+          check_sky_world, check_set_view, check_camera_dof, check_render, check_cloth_self_distance_cap]
 
 report = {"blender": bpy.app.version_string, "recipes_tested_with": recipes.TESTED_WITH, "checks": {}}
 for fn in HUMAN_CHECKS:

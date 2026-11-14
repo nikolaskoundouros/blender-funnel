@@ -14,9 +14,11 @@ Read `CLAUDE.md` first (the loop and rules), then this.
 - Playbooks: `playbooks/outfit.md` (routes A to F, every failure with its fix), `outfit-log.md`.
 
 ## Open questions (next research)
-1. **Draping a T-shirt rises 5 to 10 cm** in every variant tried (playbook: "Draping a
-   T-shirt (route B) over trousers: not solved"). Find the cause in Blender's cloth solver
-   (rest shape, shrink, collision response on sloping hips) before more trial runs.
+1. **Draping a T-shirt rises 5 to 10 cm: solved (14 Nov, run 016).** Cause: cloth
+   self-collision distance larger than the cloth's triangle spacing (neighbour triangles
+   repel). `cloth.add_cloth` now caps it; hem +0.7 cm instead of +7.7 cm. Next: full-size
+   route-B re-run beside route E; re-run the `SETTLE=1` pro method (was 15 mm). See
+   `notes/cloth.md` claims 9 to 14 and `playbooks/outfit.md`.
 2. **Tutorial methods not yet run to the end** (too slow on a 4-core cloud machine):
    pro T-shirt (`notes/tutorial-pro-tshirt.md`, `SETTLE=1` in run 013) and sewn-panel
    pants (`notes/tutorial-pro-pants.md`, `recipes/panels.py`, run 014). Run on the owner's
