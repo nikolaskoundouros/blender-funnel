@@ -33,3 +33,20 @@ compares mouth opening at p/b/m centres and at open-vowel centres.
   is judged by phoneme-centre contrast and by eye. ElevenLabs' own timestamps could replace
   Whisper's for its voices.
 - No tongue (th, l), no emotion: face expression is neutral apart from blinks and head.
+
+## Checkpoint: lip work paused (14 Nov 2026, owner: scene test first)
+
+Measured on held-out segment D (55-70 s), landmarks only, face widths, p5 / median / p95:
+
+| Measure | Real speaker | Ours (D_final) |
+|---|---|---|
+| mouth_width | 0.380 / 0.445 / 0.499 | 0.326 / 0.355 / 0.379 |
+| upper_lip (nose base to upper inner lip; smaller = lip lifted) | 0.127 / 0.145 / 0.161 | 0.147 / 0.158 / 0.168 |
+| lip_gap | 0.030 / 0.084 / 0.167 | 0.051 / 0.078 / 0.115 |
+
+Next steps when resumed, each checked on segment A and validated on 0-10 s (unused):
+1. Upper lip lift while talking (mouthUpperUp L/R from speech activity) toward upper_lip median 0.145.
+2. Wider mouth and more width change: per-viseme gains for spreading (ee, s) and rounding (oo, w, o) visemes; target width range ~0.1.
+3. Firmer p/b/m (mouthPress), small corner movement.
+4. Teeth render grey (lighting; the texture is white/pink).
+`tools/face_track.py` now writes `upper_lip` for this.
