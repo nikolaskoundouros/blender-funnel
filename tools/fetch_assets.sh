@@ -47,6 +47,16 @@ if [ ! -f "$TARGET/faceunits01/targets/faceunits/jawOpen.target" ]; then
   python3 -I -c "import sys, zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$WORK/faceunits01.zip" "$TARGET/faceunits01"
 fi
 
+# MediaPipe Face Landmarker model (Apache-2.0 model card), for tools/face_track.py.
+MP_URL="https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task"
+MP_SHA256="64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff"
+if [ ! -f "$TARGET/models/face_landmarker.task" ]; then
+  mkdir -p "$TARGET/models"
+  curl -sS -L --retry 3 -o "$WORK/face_landmarker.task" "$MP_URL"
+  echo "$MP_SHA256  $WORK/face_landmarker.task" | sha256sum -c --quiet
+  cp "$WORK/face_landmarker.task" "$TARGET/models/"
+fi
+
 if [ ! -f "$TARGET/motion/cmu/05_02.bvh" ]; then
   git clone --quiet --filter=blob:none --no-checkout https://github.com/una-dinosauria/cmu-mocap.git "$WORK/cmu"
   git -C "$WORK/cmu" sparse-checkout set --no-cone \

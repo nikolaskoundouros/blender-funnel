@@ -1,0 +1,100 @@
+{
+ "blender": "5.3.0",
+ "key_build_seconds": 31.2,
+ "objects_keyed": [
+  "Boy",
+  "Boy_eyebrow001",
+  "Boy_eyelashes01",
+  "Boy_low-poly",
+  "Boy_shoes05",
+  "Boy_teeth_base"
+ ],
+ "objects_per_unit": {
+  "browDownLeft": 3,
+  "browDownRight": 3,
+  "browInnerUp": 2,
+  "browOuterUpLeft": 2,
+  "browOuterUpRight": 2,
+  "cheekPuff": 3,
+  "cheekSquintLeft": 3,
+  "cheekSquintRight": 3,
+  "eyeBlinkLeft": 3,
+  "eyeBlinkRight": 3,
+  "eyeLookDownLeft": 4,
+  "eyeLookDownRight": 4,
+  "eyeLookInLeft": 4,
+  "eyeLookInRight": 4,
+  "eyeLookOutLeft": 4,
+  "eyeLookOutRight": 4,
+  "eyeLookUpLeft": 4,
+  "eyeLookUpRight": 4,
+  "eyeSquintLeft": 3,
+  "eyeSquintRight": 3,
+  "eyeWideLeft": 3,
+  "eyeWideRight": 3,
+  "jawForward": 3,
+  "jawLeft": 3,
+  "jawOpen": 3,
+  "jawRight": 3,
+  "mouthClose": 2,
+  "mouthDimpleLeft": 1,
+  "mouthDimpleRight": 1,
+  "mouthFrownLeft": 2,
+  "mouthFrownRight": 2,
+  "mouthFunnel": 3,
+  "mouthLeft": 2,
+  "mouthLowerDownLeft": 1,
+  "mouthLowerDownRight": 1,
+  "mouthPressLeft": 2,
+  "mouthPressRight": 2,
+  "mouthPucker": 2,
+  "mouthRight": 2,
+  "mouthRollLower": 2,
+  "mouthRollUpper": 1,
+  "mouthShrugLower": 1,
+  "mouthShrugUpper": 1,
+  "mouthSmileLeft": 3,
+  "mouthSmileRight": 3,
+  "mouthStretchLeft": 3,
+  "mouthStretchRight": 3,
+  "mouthUpperUpLeft": 1,
+  "mouthUpperUpRight": 1,
+  "noseSneerLeft": 3,
+  "noseSneerRight": 3,
+  "tongueOut": 0
+ },
+ "jawOpen": {
+  "max_error_mm_by_object": {
+   "Boy": 0.0001,
+   "Boy_eyebrow001": 0.0001,
+   "Boy_eyelashes01": 0.0,
+   "Boy_low-poly": 0.0,
+   "Boy_shoes05": 0.0,
+   "Boy_teeth_base": 0.0001
+  },
+  "max_error_mm": 0.0001
+ },
+ "eyeBlinkLeft": {
+  "max_error_mm_by_object": {
+   "Boy": 0.0001,
+   "Boy_eyebrow001": 0.0001,
+   "Boy_eyelashes01": 0.0001,
+   "Boy_low-poly": 0.0,
+   "Boy_shoes05": 0.0,
+   "Boy_teeth_base": 0.0
+  },
+  "max_error_mm": 0.0001
+ },
+ "mix_jaw_smile": {
+  "max_error_mm_by_object": {
+   "Boy": 0.0002,
+   "Boy_eyebrow001": 0.0001,
+   "Boy_eyelashes01": 0.0001,
+   "Boy_low-poly": 0.0,
+   "Boy_shoes05": 0.0,
+   "Boy_teeth_base": 0.0001
+  },
+  "max_error_mm": 0.0002
+ },
+ "posed_jawOpen_max_move_cm": 3.87
+}

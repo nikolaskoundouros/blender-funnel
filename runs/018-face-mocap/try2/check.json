@@ -1,0 +1,76 @@
+{
+ "frames": 96,
+ "rate": 23.981,
+ "gains": {},
+ "lip_top_up": true,
+ "smoothing": "one-euro forward+backward",
+ "found_in_render": 96,
+ "lip_gap": {
+  "r_lag0": 0.714,
+  "r_best": 0.714,
+  "lag_frames": 0,
+  "amplitude_ratio_render_over_source": 0.404
+ },
+ "eye_open_l": {
+  "r_lag0": 0.841,
+  "r_best": 0.876,
+  "lag_frames": 1,
+  "amplitude_ratio_render_over_source": 0.88
+ },
+ "eye_open_r": {
+  "r_lag0": 0.829,
+  "r_best": 0.857,
+  "lag_frames": 1,
+  "amplitude_ratio_render_over_source": 0.9
+ },
+ "blendshapes": {
+  "eyeBlinkLeft": {
+   "r_lag0": 0.864,
+   "r_best": 0.891,
+   "lag_frames": 1,
+   "amplitude_ratio_render_over_source": 1.045
+  },
+  "eyeBlinkRight": {
+   "r_lag0": 0.826,
+   "r_best": 0.831,
+   "lag_frames": 1,
+   "amplitude_ratio_render_over_source": 1.883
+  },
+  "mouthSmileLeft": {
+   "r_lag0": 0.846,
+   "r_best": 0.85,
+   "lag_frames": 1,
+   "amplitude_ratio_render_over_source": 0.919
+  },
+  "mouthSmileRight": {
+   "r_lag0": 0.839,
+   "r_best": 0.845,
+   "lag_frames": 1,
+   "amplitude_ratio_render_over_source": 0.806
+  },
+  "mouthUpperUpLeft": {
+   "r_lag0": 0.819,
+   "r_best": 0.819,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.046
+  },
+  "mouthLowerDownLeft": {
+   "r_lag0": 0.61,
+   "r_best": 0.715,
+   "lag_frames": 3,
+   "amplitude_ratio_render_over_source": 0.057
+  },
+  "browInnerUp": {
+   "r_lag0": 0.715,
+   "r_best": 0.715,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.003
+  },
+  "mouthPucker": {
+   "r_lag0": 0.751,
+   "r_best": 0.755,
+   "lag_frames": 1,
+   "amplitude_ratio_render_over_source": 1.677
+  }
+ }
+}

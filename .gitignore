@@ -10,3 +10,6 @@ runs/compare/
 # Frames, audio and contact sheets from tutorial videos are other people's work: notes/ holds what we learned
 sources/video/
 .venv/
+.venv-face/
+runs/017-faceunits/matrix_frames*/
+runs/018-face-mocap/*/render/
