@@ -31,7 +31,10 @@ ap.add_argument("--start", type=float, default=0.0)
 ap.add_argument("--gain", type=float, default=1.0)
 ap.add_argument("--truth", default="")
 ap.add_argument("--blinks", action="store_true")
+ap.add_argument("--talk-jaw", type=float, default=0.22, help="jawOpen while speaking (0 = off)")
 ap.add_argument("--no-render", action="store_true")
+ap.add_argument("--head-from", default="", help="tools/face_track.py CSV of a real speaker: reuse its head motion (looped)")
+ap.add_argument("--quality", default="check", choices=("check", "final"), help="check: 240x240, 16 samples; final: 720x720, 64")
 a = ap.parse_args()
 os.makedirs(os.path.join(a.run_dir, "render"), exist_ok=True)
 
@@ -40,6 +43,16 @@ n = len(times)
 fps = 1.0 / float(np.median(np.diff(times)))
 values = {v: np.clip(chans[v] * a.gain, 0.0, 2.0) for v in face_anim.VISEMES}   # keys allow up to 3
 values["mouthPucker"] = np.zeros(n)                      # carries the rest offset (REST_OFFSET)
+# Talking baseline: real speakers keep the lips parted between sounds (median lip gap 0.079
+# vs our 0.044 with visemes alone, runs/019 B_gain19). While speech is active (loudness
+# smoothed over 250 ms), open the jaw to just past where our lips unseal (F9: 0.15).
+win = max(1, int(0.25 * fps))
+active = np.convolve(chans["loudness"], np.ones(win) / win, "same")
+active = np.clip((active - 0.05) / 0.25, 0.0, 1.0)
+# ...but lips must meet for p/b/m and nearly for f/v: the baseline yields to them
+# (with it unconditional, p/b/m centres stayed at 0.075 face widths, C_final try 1).
+closing = np.maximum(chans["p_b_m_21"] / max(chans["p_b_m_21"].max(), 1e-9), 0.7 * chans["f_v_18"] / max(chans["f_v_18"].max(), 1e-9))
+values["jawOpen"] = np.clip(a.talk_jaw * active * (1.0 - closing), 0.0, 1.0)
 if a.blinks:
     # Idle blinks: every 2 to 5 s, 150 ms closing and opening (no source for them in audio).
     rng = np.random.default_rng(1)
@@ -53,10 +66,21 @@ if a.blinks:
         t += rng.uniform(2.0, 5.0)
     values["eyeBlinkLeft"] = values["eyeBlinkRight"] = blink
 
+head = axes = None
+if a.head_from:
+    # Audio carries no head motion; borrow a real speaker's (zero-phase smoothed, centred).
+    _, hc = face_anim.read_curves(a.head_from)
+    idx = np.arange(n) % len(hc["head_yaw"])
+    head = {k: face_anim.zero_phase(np.nan_to_num(hc["head_" + k] - np.nanmedian(hc["head_" + k]))[idx], fps)
+            for k in ("yaw", "pitch", "roll")}
+    axes = json.load(open(os.path.join(HERE, "results_face_head_axes.json")))["tracker_per_bone_degree"]
+
 if not a.no_render:
-    scene, root = face_scene()
+    scene, root = face_scene(pose="relaxed" if head else None)
+    if a.quality == "final":
+        render.cycles_cpu(scene, width=720, height=720, samples=64)
     face_anim.add_faceunit_keys(root, units=face_anim.VISEMES, **looks.CURLY_BOY_SLIDERS)
-    last = face_anim.apply_curves(root, values, frame_start=1)
+    last = face_anim.apply_curves(root, values, frame_start=1, head=head, tracker_per_bone=axes)
     scene.frame_start, scene.frame_end = 1, last
     for f in range(1, last + 1):
         scene.frame_set(f)
@@ -66,7 +90,7 @@ if not a.no_render:
                     "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "23", "-c:a", "aac", "-shortest",
                     os.path.join(a.run_dir, "talk.mp4")], check=True)
 
-check = {"frames": n, "fps": round(fps, 3), "gain": a.gain, "blinks": a.blinks}
+check = {"frames": n, "fps": round(fps, 3), "gain": a.gain, "talk_jaw": a.talk_jaw, "blinks": a.blinks}
 if a.truth:
     out_csv = os.path.join(a.run_dir, "render.csv")
     subprocess.run([os.path.join(ROOT, ".venv-face", "bin", "python"), "-I", os.path.join(ROOT, "tools", "face_track.py"),

@@ -1,0 +1,18 @@
+{
+ "frames": 361,
+ "fps": 23.981,
+ "gain": 1.9,
+ "blinks": true,
+ "lip_gap_vs_real_video": {
+  "r_lag0": -0.165,
+  "r_best": 0.072,
+  "lag_frames": -4,
+  "amplitude_ratio_render_over_source": 0.634
+ },
+ "loudness_vs_real_lip_gap": {
+  "r_lag0": 0.069,
+  "r_best": 0.19,
+  "lag_frames": 2,
+  "amplitude_ratio_render_over_source": 5.766
+ }
+}

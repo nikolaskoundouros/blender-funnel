@@ -6,7 +6,7 @@ Pronunciations: CMUdict (assets/cmudict, BSD-style), fetched by tools/fetch_asse
 
 Usage:
     .venv-face/bin/python -I tools/voice_track.py AUDIO out.csv [--fps 24] [--model base.en]
-        [--start S --duration D]
+        [--start S --duration D] [--script SCRIPT.txt]
 Columns: frame, time_s, the 21 Visemes 01 names (0..1), loudness (0..1). Writes out.json
 with the words, their times and phonemes.
 
@@ -58,7 +58,51 @@ def load_cmudict(path=CMUDICT):
     return d
 
 
+ONES = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split()
+TENS = "_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()
+
+
+def number_words(text):
+    """Spoken form of digits as Whisper writes them: "22" -> twenty two, ",000" -> thousand,
+    "1990" -> nineteen ninety, "%" -> percent."""
+    t = text.strip()
+    if re.fullmatch(r",(000)+", t):
+        return {1: ["thousand"], 2: ["million"], 3: ["billion"]}.get(len(t) // 4, [])
+    digits = re.sub(r"[^0-9]", "", t)
+    if not digits:
+        return []
+    def below_1000(n):
+        out = []
+        if n >= 100:
+            out += [ONES[n // 100], "hundred"]
+            n %= 100
+        if n >= 20:
+            out.append(TENS[n // 10])
+            n %= 10
+            if n:
+                out.append(ONES[n])
+        elif n or not out:
+            out.append(ONES[n])
+        return out
+    n = int(digits)
+    if len(digits) == 4 and 1100 <= n <= 2099 and n % 1000 >= 10:      # years
+        words = below_1000(n // 100) + below_1000(n % 100)
+    else:
+        words, scale = [], ["", "thousand", "million", "billion"]
+        groups = []
+        while n:
+            groups.append(n % 1000)
+            n //= 1000
+        for i in reversed(range(len(groups))):
+            if groups[i]:
+                words += below_1000(groups[i]) + ([scale[i]] if scale[i] else [])
+        words = words or ["zero"]
+    return words + (["percent"] if "%" in t else [])
+
+
 def phonemes(word, cmu):
+    if re.search(r"\d", word):
+        return [p for w in number_words(word) for p in cmu.get(w, [])]
     w = re.sub(r"[^a-z']", "", word.lower())
     if not w:
         return []
@@ -97,11 +141,14 @@ def main():
     ap.add_argument("--start", type=float, default=0.0)
     ap.add_argument("--duration", type=float, default=None)
     ap.add_argument("--spread", type=float, default=0.5, help="bump widening either side, fraction of the phoneme")
+    ap.add_argument("--script", default="", help="text file with the words spoken (e.g. the ElevenLabs script): steers Whisper's spelling")
     a = ap.parse_args()
     from faster_whisper import WhisperModel
     samples, rate = read_audio(a.audio, a.start, a.duration)
     model = WhisperModel(a.model, device="cpu", compute_type="int8")
-    segments, _ = model.transcribe(samples, language="en", word_timestamps=True, vad_filter=True)
+    prompt = open(a.script, encoding="utf-8").read()[-800:] if a.script else None
+    segments, _ = model.transcribe(samples, language="en", word_timestamps=True, vad_filter=True,
+                                   initial_prompt=prompt)
     cmu = load_cmudict()
     words, phones = [], []
     for seg in segments:
