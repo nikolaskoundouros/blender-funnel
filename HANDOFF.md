@@ -32,6 +32,12 @@ Read `CLAUDE.md` first (the loop and rules), then this.
 4. **Shoes**: tongue and padded collar missing; put the code-built trainers on the boy.
 5. **Shoemaster tutorial** (YouTube k-VGL4jRPnw) not watched: YouTube blocks cloud machines.
 
+## In progress: two-character reference test (run 020)
+Owner's "real test": the boy and his mom from "My Mom Cracked The Dinosaur" in one scene
+with the reference's shots and zooms. Step 1 done (both built from `recipes/characters.py`,
+two-shot). Next steps and what needs the clip: `runs/020-two-characters/review.md`.
+Continue in the session that has the clip ("FaceTracker Blender video analysis").
+
 ## Environment notes
 - Blender 5.3 as `bpy` needs Python 3.13. Assets: `tools/fetch_assets.sh`.
 - Cloud sessions: 4 cores, no GPU, 30-minute limit on background jobs. Keep cloth runs small.
