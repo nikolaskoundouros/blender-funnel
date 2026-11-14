@@ -35,6 +35,7 @@ ap.add_argument("--gains", default="{}")
 ap.add_argument("--source-frames", default="")
 ap.add_argument("--no-render", action="store_true")
 ap.add_argument("--no-topup", action="store_true")
+ap.add_argument("--head", action="store_true", help="also drive head rotation (skeleton, relaxed pose)")
 ap.add_argument("--refine", default="", help="previous run dir: correct jawOpen by its lip-gap error")
 a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:])
 os.makedirs(os.path.join(a.run_dir, "render"), exist_ok=True)
@@ -70,8 +71,14 @@ if a.refine:
 np.savez(os.path.join(a.run_dir, "keys.npz"), **values)
 
 if not a.no_render:
-    scene, root = face_scene()
-    last = face_anim.apply_curves(root, values, frame_start=1)
+    scene, root = face_scene(pose="relaxed" if a.head else None)
+    head = None
+    if a.head:
+        head = {k: face_anim.zero_phase(np.nan_to_num(chans["head_" + k] - np.nanmedian(chans["head_" + k])), rate)
+                for k in ("yaw", "pitch", "roll")}
+        axes = json.load(open(os.path.join(HERE, "results_face_head_axes.json")))["tracker_per_bone_degree"]
+    last = face_anim.apply_curves(root, values, frame_start=1, head=head,
+                                  tracker_per_bone=axes if a.head else None)
     scene.frame_start, scene.frame_end = 1, last
     for f in range(1, last + 1):
         scene.frame_set(f)
@@ -101,6 +108,7 @@ check = {"frames": n, "rate": round(rate, 3), "gains": gains, "lip_top_up": TOPU
          "lip_gap": compare(chans["lip_gap"], got["lip_gap"][:n]),
          "eye_open_l": compare(chans["eye_open_l"], got["eye_open_l"][:n]),
          "eye_open_r": compare(chans["eye_open_r"], got["eye_open_r"][:n]),
+         "head": {k: compare(chans["head_" + k], got["head_" + k][:n]) for k in ("yaw", "pitch", "roll")},
          "blendshapes": {u: compare(chans[u], got[u][:n]) for u in
                          ("eyeBlinkLeft", "eyeBlinkRight", "mouthSmileLeft", "mouthSmileRight",
                           "mouthUpperUpLeft", "mouthLowerDownLeft", "browInnerUp", "mouthPucker")}}

@@ -23,10 +23,12 @@ Read `CLAUDE.md` first (the loop and rules), then this.
    pro T-shirt (`notes/tutorial-pro-tshirt.md`, `SETTLE=1` in run 013) and sewn-panel
    pants (`notes/tutorial-pro-pants.md`, `recipes/panels.py`, run 014). Run on the owner's
    RunPod when it is set up; the render recipe still needs a GPU option.
-3. **Facial mocap**: Faceunits 01 licence confirmed CC0 (14 Nov; host index, pack JSON,
-   contributor page). Fetched by `tools/fetch_assets.sh`; `morphed_base(expression={"jawOpen": 1})`
-   works and units render correctly (run 017). Plan with checks P1 to P6 in
-   `notes/facial-mocap-plan.md`; P1 to P4 need no outside data, P5 needs a face clip from the owner.
+3. **Facial mocap: working end to end (14 Nov, runs 017-018).** Faceunits 01 is CC0;
+   `recipes/face_anim.py` keys all 52 on body and fitted items; `tools/face_track.py`
+   (MediaPipe, own venv) tracks a video; a CC BY-SA Wikitongues clip drove the boy for 15 s
+   (head r 0.99, blinks 0.95, smiles 0.85, mouth 0.92). Procedure: `playbooks/face-mocap.md`.
+   Open: brows do not move (shapes too weak for the tracker), pucker overshoots, eye gaze
+   via morphs only, no tongue. The owner has no face clip; any licensed frontal clip works.
 4. **Shoes**: tongue and padded collar missing; put the code-built trainers on the boy.
 5. **Shoemaster tutorial** (YouTube k-VGL4jRPnw) not watched: YouTube blocks cloud machines.
 

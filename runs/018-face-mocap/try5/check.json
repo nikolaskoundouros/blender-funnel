@@ -1,0 +1,97 @@
+{
+ "frames": 96,
+ "rate": 23.981,
+ "gains": {},
+ "lip_top_up": true,
+ "refined_from": "runs/018-face-mocap/try3",
+ "smoothing": "one-euro forward+backward",
+ "found_in_render": 96,
+ "lip_gap": {
+  "r_lag0": 0.815,
+  "r_best": 0.815,
+  "lag_frames": 0,
+  "amplitude_ratio_render_over_source": 0.76
+ },
+ "eye_open_l": {
+  "r_lag0": 0.891,
+  "r_best": 0.891,
+  "lag_frames": 0,
+  "amplitude_ratio_render_over_source": 0.761
+ },
+ "eye_open_r": {
+  "r_lag0": 0.826,
+  "r_best": 0.826,
+  "lag_frames": 0,
+  "amplitude_ratio_render_over_source": 0.753
+ },
+ "head": {
+  "yaw": {
+   "r_lag0": 0.994,
+   "r_best": 0.994,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.914
+  },
+  "pitch": {
+   "r_lag0": 0.992,
+   "r_best": 0.992,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.111
+  },
+  "roll": {
+   "r_lag0": 0.995,
+   "r_best": 0.995,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.539
+  }
+ },
+ "blendshapes": {
+  "eyeBlinkLeft": {
+   "r_lag0": 0.928,
+   "r_best": 0.928,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.015
+  },
+  "eyeBlinkRight": {
+   "r_lag0": 0.8,
+   "r_best": 0.8,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.531
+  },
+  "mouthSmileLeft": {
+   "r_lag0": 0.808,
+   "r_best": 0.808,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.844
+  },
+  "mouthSmileRight": {
+   "r_lag0": 0.805,
+   "r_best": 0.812,
+   "lag_frames": 1,
+   "amplitude_ratio_render_over_source": 0.788
+  },
+  "mouthUpperUpLeft": {
+   "r_lag0": 0.661,
+   "r_best": 0.661,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.714
+  },
+  "mouthLowerDownLeft": {
+   "r_lag0": 0.092,
+   "r_best": 0.447,
+   "lag_frames": 6,
+   "amplitude_ratio_render_over_source": 0.506
+  },
+  "browInnerUp": {
+   "r_lag0": 0.502,
+   "r_best": 0.502,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.014
+  },
+  "mouthPucker": {
+   "r_lag0": 0.702,
+   "r_best": 0.711,
+   "lag_frames": -1,
+   "amplitude_ratio_render_over_source": 1.311
+  }
+ }
+}

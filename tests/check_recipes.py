@@ -17,7 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
 import recipes  # noqa: E402
-from recipes import camera, cloth, color, human, lighting, motion, render, rig, stage, world  # noqa: E402
+from recipes import camera, cloth, color, face_anim, human, lighting, motion, render, rig, stage, world  # noqa: E402
 
 CAM = (6.0, -6.0, 3.0)
 
@@ -154,7 +154,31 @@ def check_cloth_self_distance_cap():
             assert not mod.collision_settings.use_self_collision, cuts
 
 
-HUMAN_CHECKS = [check_human_clothed, check_human_posed, check_human_mixamo_rig, check_motion_retarget]
+def check_face_keys():
+    """A Faceunits shape key at 1.0 gives the same body and teeth as the static morph
+    (notes/facial-mocap-plan.md P1; needs the faceunits01 asset pack)."""
+    import numpy as np
+    def coords(obj):
+        dg = bpy.context.evaluated_depsgraph_get()
+        me = obj.evaluated_get(dg).to_mesh()
+        co = np.array([v.co for v in me.vertices])
+        obj.evaluated_get(dg).to_mesh_clear()
+        return co
+    scene, _ = fresh()
+    root = human.build_human(scene, name="F", outfit=(), expression={"jawOpen": 1.0})
+    ref = {o.name: coords(o) for o in [root] + list(root.children_recursive) if o.type == "MESH"}
+    scene, _ = fresh()
+    root = human.build_human(scene, name="F", outfit=())
+    moved = face_anim.add_faceunit_keys(root, units=["jawOpen"])
+    face_anim.set_units(root, {"jawOpen": 1.0})
+    bpy.context.view_layer.update()
+    assert moved["jawOpen"] >= 2, moved            # body and teeth at least
+    for o in [root] + list(root.children_recursive):
+        if o.type == "MESH":
+            assert np.abs(coords(o) - ref[o.name]).max() < 1e-6, o.name
+
+
+HUMAN_CHECKS = [check_human_clothed, check_human_posed, check_human_mixamo_rig, check_motion_retarget, check_face_keys]
 HAVE_ASSETS = os.path.exists(os.path.join(human.DATA, "3dobjs", "base.obj"))
 
 CHECKS = [check_principled, check_backdrop, check_three_point, check_solid_world,

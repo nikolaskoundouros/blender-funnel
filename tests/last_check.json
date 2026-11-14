@@ -14,6 +14,7 @@
     "check_human_clothed": "pass",
     "check_human_posed": "pass",
     "check_human_mixamo_rig": "pass",
-    "check_motion_retarget": "pass"
+    "check_motion_retarget": "pass",
+    "check_face_keys": "pass"
   }
 }

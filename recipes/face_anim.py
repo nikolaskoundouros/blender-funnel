@@ -173,10 +173,15 @@ def prepare(chans, rate, neutral=None, gain=None, smooth=True, floor=0.0):
     return out
 
 
-def apply_curves(root, values, frame_start=1, head=None, head_bones=(("neck01", 0.4), ("head", 0.6))):
-    """Keyframe shape keys (values: {unit: per-frame array}) and optionally head rotation
-    (head: {"yaw","pitch","roll"} arrays in degrees, relative to the neutral pose), split
-    over the given bones. Returns the last frame."""
+def apply_curves(root, values, frame_start=1, head=None, head_bones=(("neck01", 0.4), ("head", 0.6)),
+                 tracker_per_bone=None):
+    """Keyframe shape keys (values: {unit: per-frame array}) and optionally head rotation.
+
+    head: {"yaw", "pitch", "roll"} arrays in tracker degrees (tools/face_track.py), relative
+    to the neutral pose. tracker_per_bone: 3x3 matrix, rows tracker (yaw, pitch, roll),
+    columns bone axis (x, y, z), measured by experiments/face_head_axes.py on the default rig
+    (bone x = pitch, y = yaw, z = roll). The bone rotation solving it is split over head_bones.
+    Returns the last frame."""
     n = len(next(iter(values.values())))
     objects = keyable_objects(root)
     for obj in objects:
@@ -191,6 +196,9 @@ def apply_curves(root, values, frame_start=1, head=None, head_bones=(("neck01", 
                 kb.value = float(curve[i])
                 kb.keyframe_insert("value", frame=frame_start + i)
     if head is not None and root.type == "ARMATURE":
+        M = np.array(tracker_per_bone if tracker_per_bone is not None else [[0, 1, 0], [1, 0, 0], [0, 0, 1]], dtype=float)
+        tracked = np.stack([np.nan_to_num(head["yaw"]), np.nan_to_num(head["pitch"]), np.nan_to_num(head["roll"])])
+        bone_deg = np.linalg.solve(M, tracked)               # rows: bone x, y, z
         for bone_name, share in head_bones:
             pb = root.pose.bones.get(bone_name)
             if pb is None:
@@ -198,9 +206,8 @@ def apply_curves(root, values, frame_start=1, head=None, head_bones=(("neck01", 
             pb.rotation_mode = "XYZ"
             base = pb.rotation_euler.copy()
             for i in range(n):
-                # Bone axes in MakeHuman's default rig: x pitch (nod), y yaw (turn), z roll (tilt).
-                pb.rotation_euler = (base.x + math.radians(share * head["pitch"][i]),
-                                     base.y + math.radians(share * head["yaw"][i]),
-                                     base.z + math.radians(share * head["roll"][i]))
+                pb.rotation_euler = (base.x + math.radians(share * bone_deg[0, i]),
+                                     base.y + math.radians(share * bone_deg[1, i]),
+                                     base.z + math.radians(share * bone_deg[2, i]))
                 pb.keyframe_insert("rotation_euler", frame=frame_start + i)
     return frame_start + n - 1

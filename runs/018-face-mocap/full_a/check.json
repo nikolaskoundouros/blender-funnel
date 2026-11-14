@@ -1,0 +1,97 @@
+{
+ "frames": 365,
+ "rate": 23.981,
+ "gains": {},
+ "lip_top_up": true,
+ "refined_from": "",
+ "smoothing": "one-euro forward+backward",
+ "found_in_render": 365,
+ "lip_gap": {
+  "r_lag0": 0.846,
+  "r_best": 0.848,
+  "lag_frames": 1,
+  "amplitude_ratio_render_over_source": 0.697
+ },
+ "eye_open_l": {
+  "r_lag0": 0.908,
+  "r_best": 0.908,
+  "lag_frames": 0,
+  "amplitude_ratio_render_over_source": 0.81
+ },
+ "eye_open_r": {
+  "r_lag0": 0.92,
+  "r_best": 0.92,
+  "lag_frames": 0,
+  "amplitude_ratio_render_over_source": 0.905
+ },
+ "head": {
+  "yaw": {
+   "r_lag0": 0.994,
+   "r_best": 0.994,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.144
+  },
+  "pitch": {
+   "r_lag0": 0.983,
+   "r_best": 0.983,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.009
+  },
+  "roll": {
+   "r_lag0": 0.998,
+   "r_best": 0.998,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.227
+  }
+ },
+ "blendshapes": {
+  "eyeBlinkLeft": {
+   "r_lag0": 0.95,
+   "r_best": 0.95,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.988
+  },
+  "eyeBlinkRight": {
+   "r_lag0": 0.943,
+   "r_best": 0.943,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.065
+  },
+  "mouthSmileLeft": {
+   "r_lag0": 0.867,
+   "r_best": 0.867,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 1.036
+  },
+  "mouthSmileRight": {
+   "r_lag0": 0.854,
+   "r_best": 0.854,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.794
+  },
+  "mouthUpperUpLeft": {
+   "r_lag0": 0.489,
+   "r_best": 0.489,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.14
+  },
+  "mouthLowerDownLeft": {
+   "r_lag0": 0.485,
+   "r_best": 0.563,
+   "lag_frames": 3,
+   "amplitude_ratio_render_over_source": 0.218
+  },
+  "browInnerUp": {
+   "r_lag0": 0.797,
+   "r_best": 0.797,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 0.009
+  },
+  "mouthPucker": {
+   "r_lag0": 0.699,
+   "r_best": 0.699,
+   "lag_frames": 0,
+   "amplitude_ratio_render_over_source": 2.932
+  }
+ }
+}

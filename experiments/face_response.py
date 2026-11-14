@@ -28,11 +28,12 @@ S = looks.CURLY_BOY_SLIDERS
 UNITS = [u for u in face_anim.ARKIT if u != "tongueOut"]   # MediaPipe has no tongueOut
 
 
-def face_scene():
-    """The boy with face keys, a front close-up camera and soft light. Returns root."""
+def face_scene(pose=None):
+    """The boy with face keys, a front close-up camera and soft light. Returns root.
+    pose: None (no skeleton) or a pose for rig.apply_pose, e.g. "relaxed" for head motion."""
     scene = stage.new_scene()
     root = human.build_human(scene, name="Boy", skin="young_caucasian_male", hair=None, eyes="green",
-                             outfit=(), pose=None, **S)
+                             outfit=(), pose=pose, **S)
     face_anim.add_faceunit_keys(root, **S)
     lm = accessories.face_landmarks(human.morphed_base(**S))
     target = bpy.data.objects.new("aim", None)
