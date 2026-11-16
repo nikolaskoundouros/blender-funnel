@@ -12,12 +12,17 @@ import bmesh
 import numpy as np
 from mathutils import Vector
 
-from . import face_anim, garments, human, looks, materials, prints, sculpt
+from . import face_anim, garments, human, looks, materials, prints, sculpt, tee_hang
 
 TEE = (0.74, 0.74, 0.70)
 PANTS = (0.012, 0.035, 0.17)        # royal blue (owner's change from the reference green)
 STRIPE = (0.55, 0.025, 0.02)        # red
 SHOE = (0.62, 0.38, 0.04)           # yellow
+# look="ref" (owner, 14 Nov 2026, matched side by side to the clip): older and slimmer, bigger chest,
+# cream tee that hangs straight with a wide neck, slim tapered joggers, flat yellow trainers.
+BOY_REF_SLIDERS = dict(gender=1.0, age=0.27, muscle=0.8, weight=0.35, height=0.5, caucasian=1, african=0, asian=0)
+TEE_REF = (0.72, 0.66, 0.54)          # cream, from the clip's shirt colour ratio
+TEE_HANG = dict(HANG_LEN=1.35, SLEEVE_EASE=0.018, SLEEVE_LEN=0.025, NECK_FRONT=0.012, SHIRT_SUBDIV=3, SHIRT_TAUBIN=6)
 MOM_SLIDERS = dict(gender=0.0, age=0.6, muscle=0.45, weight=0.5, height=0.5,
                    caucasian=1, african=0, asian=0)   # about 38 years (age 0.5 = 25, 1.0 = 90)
 
@@ -29,22 +34,31 @@ def _face_keys(root, **sliders):
 
 
 def curly_boy(scene, name="Boy", location=(0.0, 0.0, 0.0), facing_deg=0.0, pose="relaxed",
-              hair_children=150000, face_keys=True):
-    """The curly-haired boy, as finished in run 013 (route E) plus run 012's hair.
+              hair_children=150000, face_keys=True, look="ref", hang=None):
+    """The curly-haired boy. look="run013": as finished in run 013 (route E) plus run 012's hair.
+    look="ref": the owner's 14 Nov changes from the side-by-side with the clip (BOY_REF_SLIDERS,
+    cream tee reshaped by recipes/tee_hang, slim joggers). hang overrides TEE_HANG values.
     Returns (root, base_verts)."""
-    S = looks.CURLY_BOY_SLIDERS
+    ref = look == "ref"
+    S = BOY_REF_SLIDERS if ref else looks.CURLY_BOY_SLIDERS
+    tee_rgb = TEE_REF if ref else TEE
     base_verts = human.morphed_base(**S)
-    cut = {"thigh": 0.088, "knee": 0.074, "ankle": 0.062, "folds": 0.005}
+    cut = ({"thigh": 0.075, "knee": 0.062, "ankle": 0.045, "folds": 0.0} if ref
+           else {"thigh": 0.088, "knee": 0.074, "ankle": 0.062, "folds": 0.005})
     baggy = garments.baggy_ease(outer=0.012, inner=0.008, waist=0.010, ankle=0.006)
     jersey = lambda n, rgb: materials.fabric(rgb, name=n, thread=0.0008, on="garment", sheen=0.25)
-    pants = garments.trousers(name="pants", length=1.93, waist=0.0, ease=baggy, smooth_shell=30, thickness=0.003,
+    pants = garments.trousers(name="pants", length=1.93, waist=-0.04 if ref else 0.0, ease=baggy, smooth_shell=30, thickness=0.003,
                               cut=cut, material=jersey(f"{name}_Pants", PANTS))
     stripe = garments.leg_patch("stripe", s=(0.02, 1.92), theta=(84, 96), ease=baggy + 0.0035, thickness=0.0008,
                                 material=jersey(f"{name}_Stripe", STRIPE), smooth_shell=30, cut=cut, corner=0.002,
                                 step=0.004)
-    edits = [sculpt.clothes(sculpt.inflate("belly", 0.20, 0.03)),
-             sculpt.clothes(sculpt.inflate("chest", 0.17, 0.016)),
-             sculpt.clothes(sculpt.inflate("shoulder.L", 0.09, 0.008, mirror=True))]
+    if ref:   # a bigger chest on the body itself (+2 cm each side); the tee is loosened by tee_hang instead
+        edits = [sculpt.inflate(("chest", (0.07, -0.07, 0.02)), 0.13, 0.02, mirror=True),
+                 sculpt.clothes(sculpt.inflate("chest", 0.17, 0.01))]
+    else:
+        edits = [sculpt.clothes(sculpt.inflate("belly", 0.20, 0.03)),
+                 sculpt.clothes(sculpt.inflate("chest", 0.17, 0.016)),
+                 sculpt.clothes(sculpt.inflate("shoulder.L", 0.09, 0.008, mirror=True))]
     head = looks.head_pose(*looks.CURLY_BOY_HEAD) if pose == "relaxed" else []
     from . import rig
     pose_steps = (rig.POSES["relaxed"] + head) if pose == "relaxed" else pose
@@ -55,15 +69,24 @@ def curly_boy(scene, name="Boy", location=(0.0, 0.0, 0.0), facing_deg=0.0, pose=
     tee = kids[f"{name}_male_casualsuit06"]
     tee.name = f"{name}_tee"
     _drop_lowest_piece(tee)                       # the asset's jeans
+    if ref:
+        _straight_hem(tee)                        # the waistband notch
     tb = next(n for n in tee.data.materials[0].node_tree.nodes if n.type == "BSDF_PRINCIPLED")
     for l in [l for l in tee.data.materials[0].node_tree.links if l.to_socket == tb.inputs["Base Color"]]:
         tee.data.materials[0].node_tree.links.remove(l)
-    tb.inputs["Base Color"].default_value = TEE + (1.0,)
+    tb.inputs["Base Color"].default_value = tuple(tee_rgb) + (1.0,)
     tb.inputs["Roughness"].default_value = 0.85
+    if ref:   # the asset's fold texture shows as blotches on a plain tee
+        for l in [l for l in tee.data.materials[0].node_tree.links if l.to_socket == tb.inputs["Normal"]]:
+            tee.data.materials[0].node_tree.links.remove(l)
+        for poly in tee.data.polygons:
+            poly.use_smooth = True
+        sub = tee.modifiers.new("Smooth surface", "SUBSURF")
+        sub.levels, sub.render_levels = 1, 2
     body = looks.body_of(root, name)
     looks.freckled_skin(body, base_verts)
     looks.odd_eyes(root, name)
-    _tint_shoes(kids[f"{name}_shoes05"], SHOE)
+    _tint_shoes(kids[f"{name}_shoes05"], SHOE, blend="MIX" if ref else "MULTIPLY")
     marks = sculpt.landmarks(human.to_blender(base_verts))
     want = Vector((0.065, 0.0, float(marks["chest"][2]) + 0.11))
     tco = [v.co for v in tee.data.vertices]
@@ -74,6 +97,12 @@ def curly_boy(scene, name="Boy", location=(0.0, 0.0, 0.0), facing_deg=0.0, pose=
                  width=0.085)
     if face_keys:
         _face_keys(root, **S)
+    if ref:   # after the face keys: the reshaped tee is a new, already posed mesh
+        opts = dict(TEE_HANG, **(hang or {}))
+        tee_hang.apply(scene, tee, root if root.type == "ARMATURE" else None, body,
+                       [o for o in root.children_recursive if o.name in (f"{name}_pants", f"{name}_stripe")],
+                       float(marks["chest"][2]) + float(root.matrix_world.translation.z), tee_rgb,
+                       lambda k, d: type(d)(opts.get(k, d)))
     if hair_children:
         looks.orange_curls(scene, base_verts, armature=root if root.type == "ARMATURE" else None,
                            parent=root, children=hair_children)
@@ -119,8 +148,26 @@ def _drop_lowest_piece(obj):
     bm.free()
 
 
-def _tint_shoes(shoes, rgb, sole=0.025):
-    """Multiply the shoe colour above the sole (object height over `sole`), as run 013."""
+def _straight_hem(obj, margin=0.004):
+    """Cut a tee's hem straight at the height of its highest low point (removes the notch where a
+    waistband poked through), as tested on 14 Nov 2026."""
+    import math
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    prof = {}
+    for v in bm.verts:
+        a = int((math.degrees(math.atan2(v.co.y, v.co.x)) + 180) // 10)
+        prof[a] = min(prof.get(a, 9e9), v.co.z)
+    zc = max(prof.values()) + margin
+    bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=(0, 0, zc), plane_no=(0, 0, 1),
+                           clear_inner=True)
+    bm.to_mesh(obj.data)
+    bm.free()
+
+
+def _tint_shoes(shoes, rgb, sole=0.025, blend="MULTIPLY"):
+    """Colour the shoe above the sole (object height over `sole`): MULTIPLY keeps the texture (run 013),
+    MIX gives a flat colour (owner, 14 Nov)."""
     mat = shoes.data.materials[0]
     nodes, links = mat.node_tree.nodes, mat.node_tree.links
     bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
@@ -133,7 +180,7 @@ def _tint_shoes(shoes, rgb, sole=0.025):
     links.new(sep.outputs["Z"], upper.inputs[0])
     upper.inputs[1].default_value = sole
     tint = nodes.new("ShaderNodeMix")
-    tint.data_type, tint.blend_type = "RGBA", "MULTIPLY"
+    tint.data_type, tint.blend_type = "RGBA", blend
     links.new(upper.outputs[0], tint.inputs["Factor"])
     links.new(src, tint.inputs["A"])
     tint.inputs["B"].default_value = (rgb[0] * 1.3, rgb[1] * 1.3, rgb[2] * 1.3, 1.0)

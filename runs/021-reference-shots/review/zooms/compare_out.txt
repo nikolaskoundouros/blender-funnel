@@ -1,0 +1,20 @@
+PROGRESS 60 379
+PROGRESS 120 379
+PROGRESS 180 379
+PROGRESS 240 379
+PROGRESS 300 379
+PROGRESS 360 379
+PROGRESS 379 379
+frames 379 fps 30  track 356 (94%)  whip 13 (3%)  cut 6 (2%)  lost 4 (1%)
+data.json: 379 frames, 38 moves; zoom in 4s, dolly out 2s, dolly in 1s, hold 1s, push in 1s, pull out 0s, move left 0s, orbit left 0s
+SUMMARY {"frames": 379, "big_zoom_moves": 9, "same_direction": 9, "ref_whips": 36, "whips_read_as_whips_in_ours": 2, "zoom_curve_correlation": 0.61, "pan_curve_correlation": 0.06}
+ 0.00s pull out     ref zoom   -68.1%  ours   -74.4%  (pull out)
+ 1.63s push in      ref zoom   +35.4%  ours   +11.9%  (hold)
+ 2.37s pull out     ref zoom   -20.1%  ours   -12.5%  (dolly out)
+ 4.07s dolly in     ref zoom  +289.8%  ours  +342.5%  (dolly in)
+ 5.87s push in      ref zoom   +24.9%  ours   +17.6%  (dolly in)
+ 6.13s dolly in     ref zoom   +48.1%  ours   +51.0%  (dolly in)
+ 8.00s dolly out    ref zoom   -77.2%  ours   -84.4%  (dolly out)
+10.97s move left    ref zoom   -28.9%  ours   -18.6%  (dolly out)
+11.33s pull out     ref zoom   -29.4%  ours   -11.8%  (dolly out)
+DONE
